@@ -315,6 +315,42 @@ npm run build
 pm2 restart all
 ```
 
+### データベースリセット
+
+```bash
+cd ~/ajmun-x
+
+# 1. アプリを停止
+pm2 stop all
+
+# 2. 既存のデータベースを削除
+rm -f prisma/prod.db
+
+# 3. 新しいデータベースを作成
+npx prisma db push
+
+# 4. アプリを再起動
+pm2 restart all
+```
+
+> ⚠️ **注意**: データベースリセットを実行すると、すべてのユーザーデータ、出席ログ、設定が削除されます。
+
+### ユーザー再同期（出席ログ・設定を保持）
+
+出席ログと設定を残したまま、ユーザー情報だけを再同期する場合：
+
+```bash
+cd ~/ajmun-x
+
+# ユーザーテーブルのみクリア
+sqlite3 prisma/prod.db "DELETE FROM UserGuildMembership; DELETE FROM User;"
+
+# Bot を再起動（自動でユーザーが再同期される）
+pm2 restart ajmun-bot
+```
+
+> 💡 Bot 起動時に全サーバーのメンバーが自動同期されるため、ユーザーデータは復元されます。
+
 ### ネットワーク確認
 
 ```bash
