@@ -139,9 +139,9 @@ export default async function TicketPage() {
                     {/* Event Info */}
                     <div className="mt-6 rounded-lg bg-white/5 p-4">
                         <p className="text-center text-sm text-slate-300">
-                            <span className="font-semibold text-white">AJMUN 2024</span>
+                            <span className="font-semibold text-white">第37回全日本大会</span>
                             <br />
-                            2024年12月27日〜30日
+                            2025年12月27日〜30日
                         </p>
                     </div>
                 </div>

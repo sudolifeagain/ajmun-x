@@ -14,8 +14,8 @@ export default async function Home() {
       <div className="w-full max-w-md px-6">
         <div className="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur-xl">
           <div className="mb-8 text-center">
-            <h1 className="mb-2 text-3xl font-bold text-white">
-              AJMUN 2024
+            <h1 className="mb-2 text-2xl font-bold text-white">
+              第37回 模擬国連会議全日本大会
             </h1>
             <p className="text-sm text-slate-300">
               オフラインイベント入退場管理システム
@@ -42,7 +42,19 @@ export default async function Home() {
         </div>
 
         <p className="mt-6 text-center text-xs text-slate-500">
-          © 2024 AJMUN. All rights reserved.
+          © 2025 AJMUN. All rights reserved.
+          <br />
+          <span className="text-slate-600">
+            Developed by{" "}
+            <a
+              href="https://re4lity.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-purple-400 hover:text-purple-300 transition-colors"
+            >
+              re4lity
+            </a>
+          </span>
         </p>
       </div>
     </div>
