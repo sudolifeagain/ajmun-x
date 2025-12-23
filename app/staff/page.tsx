@@ -278,18 +278,17 @@ export default function ScannerPage() {
                 </div>
             )}
 
-            {/* Camera View - Full Screen */}
-            <div className="w-full h-screen absolute inset-0">
+            {/* Camera View */}
+            <div className="w-full h-screen flex items-center justify-center bg-slate-900">
                 <div
                     id="qr-reader"
-                    className={`w-full h-full ${!isScanning ? "hidden" : ""}`}
+                    className={`w-full max-w-lg ${!isScanning ? "hidden" : ""}`}
+                    style={{ maxHeight: "80vh" }}
                 />
                 {!isScanning && (
-                    <div className="flex items-center justify-center h-full w-full bg-slate-900">
-                        <div className="text-center">
-                            <div className="animate-spin w-12 h-12 border-4 border-white/30 border-t-white rounded-full mx-auto mb-4"></div>
-                            <p className="text-white text-lg">カメラを起動中...</p>
-                        </div>
+                    <div className="text-center">
+                        <div className="animate-spin w-12 h-12 border-4 border-white/30 border-t-white rounded-full mx-auto mb-4"></div>
+                        <p className="text-white text-lg">カメラを起動中...</p>
                     </div>
                 )}
             </div>
@@ -298,7 +297,7 @@ export default function ScannerPage() {
             {result.status === "idle" && (
                 <div className="fixed bottom-0 w-full p-4 text-center bg-gradient-to-t from-black/50 to-transparent z-20">
                     <p className="text-white/80 text-sm">
-                        {isScanning ? "📷 カメラ画面全体でスキャン可能" : "カメラ準備中..."}
+                        {isScanning ? "📷 カメラ画面全体でスキャン可能！" : "カメラ準備中..."}
                     </p>
                 </div>
             )}
