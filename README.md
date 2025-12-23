@@ -1,36 +1,101 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AJMUN Event Management System
 
-## Getting Started
+Offline event entry/exit management system with Discord OAuth authentication and QR code scanning.
 
-First, run the development server:
+## Features
+
+- **Discord OAuth Authentication**: Users log in with their Discord account
+- **QR Code Issuance**: Generate signed QR codes after login
+- **Reception Scanner**: Staff-only QR code scanning page
+- **Attendance Management**: Check and manage attendance via Discord Bot
+- **Multi-Server Support**: Supports 6 conference servers + 1 operations server
+
+## Tech Stack
+
+- **Frontend**: Next.js 16, React, TailwindCSS
+- **Backend**: Next.js API Routes
+- **Database**: SQLite (Prisma ORM)
+- **Authentication**: Discord OAuth2
+- **Bot**: Discord.js
+
+## Setup
+
+### Requirements
+
+- Node.js v22+
+- npm
+
+### Installation
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/sudolifeagain/ajmun-x.git
+cd ajmun-x
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Environment Variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Create a `.env` file:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```env
+# Discord OAuth2
+DISCORD_CLIENT_ID=your_client_id
+DISCORD_CLIENT_SECRET=your_client_secret
+DISCORD_REDIRECT_URI=http://localhost:3000/api/auth/discord/callback
 
-## Learn More
+# Discord Bot
+DISCORD_BOT_TOKEN=your_bot_token
 
-To learn more about Next.js, take a look at the following resources:
+# Database
+DATABASE_URL=file:./prisma/dev.db
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# QR Secret
+QR_SECRET=your-random-secret-32chars-or-more
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Base URL
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+```
 
-## Deploy on Vercel
+### Database Initialization
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npx prisma db push
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Running Development Server
+
+```bash
+# Web app
+npm run dev
+
+# Discord Bot (separate terminal)
+npm run bot
+```
+
+Open [http://localhost:3000](http://localhost:3000) to access the app.
+
+## Deployment
+
+For production deployment, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+## Directory Structure
+
+```
+ajmun-x/
+├── app/                    # Next.js App Router
+│   ├── api/                # API Routes
+│   │   ├── auth/           # Discord OAuth
+│   │   └── scan/           # QR Scan
+│   ├── staff/              # Staff Scanner
+│   ├── ticket/             # QR Code Display
+│   └── lib/                # Shared Libraries
+├── bot/                    # Discord Bot
+│   ├── commands/           # Slash Commands
+│   ├── events/             # Event Handlers
+│   ├── services/           # Business Logic
+│   └── utils/              # Utilities
+├── prisma/                 # Prisma Schema
+└── docs/                   # Documentation
+```
+
+
