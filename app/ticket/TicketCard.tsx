@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef } from "react";
-import html2canvas from "html2canvas";
 import QRCodeDisplay from "./QRCodeDisplay";
 import Link from "next/link";
 
@@ -27,43 +26,79 @@ interface TicketCardProps {
 export default function TicketCard({ user, guilds }: TicketCardProps) {
     const ticketRef = useRef<HTMLDivElement>(null);
 
-    const handleSaveImage = async () => {
-        if (!ticketRef.current) return;
+    const handleSaveImage = () => {
+        // Find the QR code canvas element
+        const qrCanvas = ticketRef.current?.querySelector('canvas');
+        if (!qrCanvas) {
+            alert("QRコードが見つかりません。");
+            return;
+        }
 
         try {
-            // Clone the element and remove external images to avoid CORS issues
-            const clone = ticketRef.current.cloneNode(true) as HTMLElement;
-            const images = clone.querySelectorAll('img');
-            images.forEach((img) => {
-                // Replace images with colored placeholder
-                const placeholder = document.createElement('div');
-                placeholder.style.width = img.width + 'px';
-                placeholder.style.height = img.height + 'px';
-                placeholder.style.borderRadius = '50%';
-                placeholder.style.backgroundColor = '#8B5CF6';
-                placeholder.style.display = 'flex';
-                placeholder.style.alignItems = 'center';
-                placeholder.style.justifyContent = 'center';
-                placeholder.style.color = 'white';
-                placeholder.style.fontSize = '14px';
-                placeholder.style.fontWeight = 'bold';
-                placeholder.textContent = '👤';
-                img.parentNode?.replaceChild(placeholder, img);
-            });
+            // Create a new canvas with padding and text
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
 
-            // Temporarily append clone to document
-            clone.style.position = 'absolute';
-            clone.style.left = '-9999px';
-            document.body.appendChild(clone);
+            const padding = 40;
+            const headerHeight = guilds.length > 0 ? 60 : 0;
+            const footerHeight = 100;
+            const qrSize = qrCanvas.width;
 
-            const canvas = await html2canvas(clone, {
-                backgroundColor: "#1e1b4b",
-                scale: 2,
-                logging: false,
-            });
+            canvas.width = qrSize + padding * 2;
+            canvas.height = headerHeight + qrSize + padding + footerHeight;
 
-            document.body.removeChild(clone);
+            // Background gradient
+            const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            gradient.addColorStop(0, '#0f172a');
+            gradient.addColorStop(0.5, '#581c87');
+            gradient.addColorStop(1, '#0f172a');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+            // Server info at top
+            if (guilds.length > 0) {
+                const guild = guilds[0];
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '11px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('所属サーバー', canvas.width / 2, 20);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 14px sans-serif';
+                ctx.fillText(guild.guildName, canvas.width / 2, 38);
+
+                ctx.fillStyle = '#c4b5fd';
+                ctx.font = '12px sans-serif';
+                ctx.fillText(guild.nickname || user.globalName || 'User', canvas.width / 2, 55);
+            }
+
+            // White background for QR
+            const qrY = headerHeight + 10;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(padding - 10, qrY - 10, qrSize + 20, qrSize + 20);
+
+            // Draw QR code
+            ctx.drawImage(qrCanvas, padding, qrY);
+
+            // Event text at bottom
+            const textY = headerHeight + qrSize + 30;
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 16px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('第37回全日本大会', canvas.width / 2, textY);
+
+            ctx.font = '12px sans-serif';
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillText('2025年12月27日〜30日', canvas.width / 2, textY + 20);
+
+            // Attribute badge
+            const attrText = user.primaryAttribute === "staff" ? "スタッフ"
+                : user.primaryAttribute === "organizer" ? "会議運営者" : "参加者";
+            ctx.fillStyle = '#a78bfa';
+            ctx.fillText(attrText, canvas.width / 2, textY + 40);
+
+            // Download
             const link = document.createElement("a");
             link.download = `ajmun-ticket-${user.discordUserId}.png`;
             link.href = canvas.toDataURL("image/png");
