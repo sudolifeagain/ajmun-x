@@ -119,6 +119,7 @@ export default function ScannerPage() {
                     { facingMode: "environment" },
                     {
                         fps: 15,
+                        qrbox: { width: 300, height: 300 },
                         aspectRatio: 1,
                         disableFlip: false,
                     },
