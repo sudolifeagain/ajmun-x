@@ -142,7 +142,7 @@ export default function TicketCard({ user, guilds }: TicketCardProps) {
                 {/* QR Code */}
                 <div className="flex flex-col items-center">
                     <div className="rounded-xl bg-white p-4 shadow-lg">
-                        <QRCodeDisplay token={user.qrToken} size={200} />
+                        <QRCodeDisplay token={user.qrToken} />
                     </div>
 
                     <p className="mt-4 text-center text-xs text-slate-400">
