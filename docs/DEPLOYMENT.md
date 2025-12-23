@@ -305,7 +305,7 @@ sqlite3 ~/ajmun-x/prisma/prod.db "SELECT substr(qrToken, 1, 30) FROM User LIMIT 
 sqlite3 ~/ajmun-x/prisma/prod.db "SELECT * FROM AttendanceLog;"
 ```
 
-### Prisma クリーンビルド
+### Prisma クリーンビルド(DBは保持)
 
 ```bash
 cd ~/ajmun-x
