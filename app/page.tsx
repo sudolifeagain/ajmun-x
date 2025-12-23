@@ -55,6 +55,14 @@ export default async function Home() {
               re4lity
             </a>
           </span>
+          <br />
+          <a href="/terms" className="text-slate-500 hover:text-slate-400 transition-colors">
+            利用規約
+          </a>
+          {" | "}
+          <a href="/privacy" className="text-slate-500 hover:text-slate-400 transition-colors">
+            プライバシーポリシー
+          </a>
         </p>
       </div>
     </div>

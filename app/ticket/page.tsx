@@ -155,6 +155,17 @@ export default async function TicketPage() {
                         ログアウト
                     </Link>
                 </div>
+
+                {/* Footer Links */}
+                <div className="mt-6 text-center text-xs text-slate-500">
+                    <Link href="/terms" className="hover:text-slate-400 transition-colors">
+                        利用規約
+                    </Link>
+                    {" | "}
+                    <Link href="/privacy" className="hover:text-slate-400 transition-colors">
+                        プライバシーポリシー
+                    </Link>
+                </div>
             </div>
         </div>
     );
