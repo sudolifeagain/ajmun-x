@@ -48,7 +48,8 @@ export default function TermsPage() {
 
                     <section>
                         <h2 className="mb-3 text-xl font-semibold text-white">5. 知的財産権</h2>
-                        <p>本サービスに関するすべての知的財産権は、当事務局または開発者（re4lity）に帰属します。</p>
+                        <p>本サービスのオリジナルコード、デザイン、コンテンツに関する知的財産権は、当事務局または開発者（re4lity）に帰属します。</p>
+                        <p className="mt-2 text-sm text-slate-400">本サービスで使用しているオープンソースライブラリ（Next.js、Prisma、その他）については、それぞれのライセンスに従います。</p>
                     </section>
 
                     <section>
