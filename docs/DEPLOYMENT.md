@@ -144,7 +144,21 @@ pm2 save
 sudo env PATH=$PATH:/home/ubuntu/.nvm/versions/node/v22.21.1/bin /home/ubuntu/.nvm/versions/node/v22.21.1/lib/node_modules/pm2/bin/pm2 startup systemd -u ubuntu --hp /home/ubuntu
 ```
 
-### 2.5 Nginx リバースプロキシ (推奨)
+### 2.5 アプリケーション更新
+
+コードを更新した場合は、以下のコマンドでデプロイします：
+
+```bash
+cd ~/ajmun-x && git pull && npm run build && pm2 restart ajmun-web
+```
+
+Bot も更新した場合：
+
+```bash
+cd ~/ajmun-x && git pull && npm run build && pm2 restart all
+```
+
+### 2.6 Nginx リバースプロキシ (推奨)
 
 ```bash
 sudo apt install -y nginx
