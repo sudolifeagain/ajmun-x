@@ -31,12 +31,38 @@ export default function TicketCard({ user, guilds }: TicketCardProps) {
         if (!ticketRef.current) return;
 
         try {
-            const canvas = await html2canvas(ticketRef.current, {
+            // Clone the element and remove external images to avoid CORS issues
+            const clone = ticketRef.current.cloneNode(true) as HTMLElement;
+            const images = clone.querySelectorAll('img');
+            images.forEach((img) => {
+                // Replace images with colored placeholder
+                const placeholder = document.createElement('div');
+                placeholder.style.width = img.width + 'px';
+                placeholder.style.height = img.height + 'px';
+                placeholder.style.borderRadius = '50%';
+                placeholder.style.backgroundColor = '#8B5CF6';
+                placeholder.style.display = 'flex';
+                placeholder.style.alignItems = 'center';
+                placeholder.style.justifyContent = 'center';
+                placeholder.style.color = 'white';
+                placeholder.style.fontSize = '14px';
+                placeholder.style.fontWeight = 'bold';
+                placeholder.textContent = '👤';
+                img.parentNode?.replaceChild(placeholder, img);
+            });
+
+            // Temporarily append clone to document
+            clone.style.position = 'absolute';
+            clone.style.left = '-9999px';
+            document.body.appendChild(clone);
+
+            const canvas = await html2canvas(clone, {
                 backgroundColor: "#1e1b4b",
                 scale: 2,
-                useCORS: true,
-                allowTaint: true,
+                logging: false,
             });
+
+            document.body.removeChild(clone);
 
             const link = document.createElement("a");
             link.download = `ajmun-ticket-${user.discordUserId}.png`;
