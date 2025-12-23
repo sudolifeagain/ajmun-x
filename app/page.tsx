@@ -3,8 +3,14 @@ import { getSession } from "@/app/lib/session";
 import Link from "next/link";
 import DiscordLoginButton from "./components/DiscordLoginButton";
 
-export default async function Home() {
+type Props = {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+};
+
+export default async function Home({ searchParams }: Props) {
   const session = await getSession();
+  const params = await searchParams;
+  const errorType = typeof params.error === "string" ? params.error : null;
 
   if (session) {
     redirect("/ticket");
@@ -24,6 +30,22 @@ export default async function Home() {
           </div>
 
           <div className="space-y-4">
+            {errorType === "access_denied" && (
+              <div className="rounded-lg bg-red-500/10 p-4 text-center border border-red-500/20">
+                <p className="text-sm font-semibold text-red-400">参加資格がありません</p>
+                <p className="text-xs text-red-300 mt-1">
+                  指定のDiscordサーバーに参加しているアカウントでログインしてください。
+                </p>
+              </div>
+            )}
+            {errorType && errorType !== "access_denied" && (
+              <div className="rounded-lg bg-red-500/10 p-4 text-center border border-red-500/20">
+                <p className="text-sm font-semibold text-red-400">ログインエラー</p>
+                <p className="text-xs text-red-300 mt-1">
+                  エラーが発生しました。もう一度お試しください。
+                </p>
+              </div>
+            )}
             <DiscordLoginButton />
           </div>
 

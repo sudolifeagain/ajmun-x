@@ -95,6 +95,12 @@ export async function GET(request: NextRequest) {
             },
         });
 
+        // REJECT if not a member of any target guild
+        if (!membership) {
+            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.url.split('/api')[0];
+            return NextResponse.redirect(new URL("/?error=access_denied", baseUrl));
+        }
+
         // Determine primary attribute based on pre-synced data
         let primaryAttribute = "participant";
         if (membership) {
