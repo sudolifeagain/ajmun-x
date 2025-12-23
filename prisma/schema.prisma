@@ -1,0 +1,79 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ユーザー基本情報
+model User {
+  discordUserId     String   @id
+  qrToken           String   @unique
+  globalName        String?
+  defaultAvatarUrl  String?
+  primaryAttribute  String   @default("participant") // participant, organizer, staff
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  guildMemberships  UserGuildMembership[]
+  attendanceLogs    AttendanceLog[]
+}
+
+// サーバー情報
+model Guild {
+  guildId            String   @id
+  guildName          String
+  guildIconUrl       String?
+  defaultColor       String   @default("#3B82F6") // デフォルト青
+  isOperationServer  Boolean  @default(false)
+  isTargetGuild      Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  userMemberships    UserGuildMembership[]
+  attendanceLogs     AttendanceLog[]
+}
+
+// ユーザー × サーバー所属
+model UserGuildMembership {
+  id              Int      @id @default(autoincrement())
+  discordUserId   String
+  guildId         String
+  nickname        String?
+  avatarUrl       String?
+  roleIds         String   @default("[]") // JSON array of role IDs
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [discordUserId], references: [discordUserId], onDelete: Cascade)
+  guild           Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  @@unique([discordUserId, guildId])
+}
+
+// 出席ログ
+model AttendanceLog {
+  id               Int      @id @default(autoincrement())
+  discordUserId    String
+  primaryGuildId   String?
+  attribute        String   // participant, organizer, staff
+  checkInDate      String   // YYYY-MM-DD format
+  checkInTimestamp DateTime @default(now())
+
+  user             User     @relation(fields: [discordUserId], references: [discordUserId], onDelete: Cascade)
+  guild            Guild?   @relation(fields: [primaryGuildId], references: [guildId], onDelete: Cascade)
+
+  @@unique([discordUserId, checkInDate])
+}
+
+// システム設定
+model SystemConfig {
+  key         String @id
+  value       String
+  description String @default("")
+}
