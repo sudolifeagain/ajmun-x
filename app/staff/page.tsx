@@ -118,8 +118,9 @@ export default function ScannerPage() {
                 await scanner.start(
                     { facingMode: "environment" },
                     {
-                        fps: 10,
-                        // No qrbox - scan entire view
+                        fps: 15,
+                        aspectRatio: 1,
+                        disableFlip: false,
                     },
                     handleScan,
                     () => { } // Ignore errors from failed scans
