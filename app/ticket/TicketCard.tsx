@@ -40,9 +40,9 @@ export default function TicketCard({ user, guilds }: TicketCardProps) {
             const ctx = canvas.getContext('2d');
             if (!ctx) return;
 
-            const padding = 40;
-            const headerHeight = guilds.length > 0 ? 60 : 0;
-            const footerHeight = 100;
+            const padding = 50;
+            const headerHeight = guilds.length > 0 ? 100 : 30;
+            const footerHeight = 130;
             const qrSize = qrCanvas.width;
 
             canvas.width = qrSize + padding * 2;
@@ -60,43 +60,44 @@ export default function TicketCard({ user, guilds }: TicketCardProps) {
             if (guilds.length > 0) {
                 const guild = guilds[0];
                 ctx.fillStyle = '#94a3b8';
-                ctx.font = '11px sans-serif';
+                ctx.font = '12px sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText('所属サーバー', canvas.width / 2, 20);
+                ctx.fillText('所属サーバー', canvas.width / 2, 30);
 
                 ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 14px sans-serif';
-                ctx.fillText(guild.guildName, canvas.width / 2, 38);
+                ctx.font = 'bold 16px sans-serif';
+                ctx.fillText(guild.guildName, canvas.width / 2, 55);
 
                 ctx.fillStyle = '#c4b5fd';
-                ctx.font = '12px sans-serif';
-                ctx.fillText(guild.nickname || user.globalName || 'User', canvas.width / 2, 55);
+                ctx.font = '14px sans-serif';
+                ctx.fillText(guild.nickname || user.globalName || 'User', canvas.width / 2, 80);
             }
 
-            // White background for QR
-            const qrY = headerHeight + 10;
+            // White background for QR with rounded corners effect
+            const qrY = headerHeight + 15;
             ctx.fillStyle = '#ffffff';
-            ctx.fillRect(padding - 10, qrY - 10, qrSize + 20, qrSize + 20);
+            ctx.fillRect(padding - 15, qrY - 15, qrSize + 30, qrSize + 30);
 
             // Draw QR code
             ctx.drawImage(qrCanvas, padding, qrY);
 
             // Event text at bottom
-            const textY = headerHeight + qrSize + 30;
+            const textY = headerHeight + qrSize + 50;
             ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 16px sans-serif';
+            ctx.font = 'bold 18px sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText('第37回全日本大会', canvas.width / 2, textY);
 
-            ctx.font = '12px sans-serif';
+            ctx.font = '14px sans-serif';
             ctx.fillStyle = '#94a3b8';
-            ctx.fillText('2025年12月27日〜30日', canvas.width / 2, textY + 20);
+            ctx.fillText('2025年12月27日〜30日', canvas.width / 2, textY + 28);
 
             // Attribute badge
             const attrText = user.primaryAttribute === "staff" ? "スタッフ"
                 : user.primaryAttribute === "organizer" ? "会議運営者" : "参加者";
             ctx.fillStyle = '#a78bfa';
-            ctx.fillText(attrText, canvas.width / 2, textY + 40);
+            ctx.font = '13px sans-serif';
+            ctx.fillText(attrText, canvas.width / 2, textY + 55);
 
             // Download
             const link = document.createElement("a");
