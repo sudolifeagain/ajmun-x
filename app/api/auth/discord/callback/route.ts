@@ -101,18 +101,27 @@ export async function GET(request: NextRequest) {
             return NextResponse.redirect(new URL("/?error=access_denied", baseUrl));
         }
 
-        // Determine primary attribute based on pre-synced data
+        // Determine primary attribute based on ALL guild memberships
         let primaryAttribute = "participant";
-        if (membership) {
-            // Check for admin/staff roles if configured
-            const staffConfig = await prisma.systemConfig.findUnique({
-                where: { key: "staff_role_ids" },
-            });
-            if (staffConfig) {
-                const staffRoleIds = staffConfig.value.split(",").map((id) => id.trim());
-                const userRoles = JSON.parse(membership.roleIds || "[]");
-                if (userRoles.some((roleId: string) => staffRoleIds.includes(roleId))) {
+
+        // Fetch all memberships for this user
+        const allMemberships = await prisma.userGuildMembership.findMany({
+            where: { discordUserId: discordUser.id },
+        });
+
+        // Check for staff roles across all guilds
+        const staffConfig = await prisma.systemConfig.findUnique({
+            where: { key: "staff_role_ids" },
+        });
+
+        if (staffConfig && allMemberships.length > 0) {
+            const staffRoleIds = staffConfig.value.split(",").map((id) => id.trim());
+
+            for (const m of allMemberships) {
+                const userRoles: string[] = JSON.parse(m.roleIds || "[]");
+                if (userRoles.some((roleId) => staffRoleIds.includes(roleId))) {
                     primaryAttribute = "staff";
+                    break;
                 }
             }
         }
