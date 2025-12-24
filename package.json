@@ -8,9 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "bot": "npx tsx bot/index.ts",
-    "slides": "marp docs/slides/introduction.md --html -o docs/slides/introduction.html",
-    "slides:pdf": "marp docs/slides/introduction.md --html --pdf -o docs/slides/introduction.pdf",
-    "slides:preview": "marp -p docs/slides/introduction.md"
+    "slides": "marp docs/slides --html --pdf -o docs/slides",
+    "slides:preview": "marp -p docs/slides"
   },
   "dependencies": {
     "@prisma/client": "^6.19.1",
@@ -25,6 +24,7 @@
     "react-dom": "19.2.3"
   },
   "devDependencies": {
+    "@kazumatu981/markdown-it-kroki": "^1.3.6",
     "@marp-team/marp-cli": "^4.2.3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
