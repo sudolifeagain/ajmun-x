@@ -21,6 +21,13 @@ export default async function Home({ searchParams }: Props) {
       <div className="w-full max-w-lg px-6">
         <div className="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur-xl">
           <div className="mb-8 text-center">
+            <div className="mb-6 flex justify-center">
+              <img
+                src="/logo.png"
+                alt="ピ逃げちゃん！ロゴ"
+                className="h-24 w-24 rounded-full shadow-lg"
+              />
+            </div>
             <h1 className="mb-2 text-2xl font-bold text-white">
               第37回 模擬国連会議全日本大会
             </h1>
