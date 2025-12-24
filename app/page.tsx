@@ -18,7 +18,7 @@ export default async function Home({ searchParams }: Props) {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      <div className="w-full max-w-md px-6">
+      <div className="w-full max-w-lg px-6">
         <div className="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur-xl">
           <div className="mb-8 text-center">
             <h1 className="mb-2 text-2xl font-bold text-white">
@@ -51,8 +51,6 @@ export default async function Home({ searchParams }: Props) {
 
           <p className="mt-6 text-center text-xs text-slate-400">
             ログインすることで、QRコードを発行できます。
-            <br />
-            識別情報のみを取得します（サーバー一覧は取得しません）。
           </p>
 
           <div className="mt-4 text-center">
