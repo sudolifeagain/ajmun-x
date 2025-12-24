@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, EmbedBuilder, Client } from "discord.js";
+import { ChatInputCommandInteraction, EmbedBuilder, Client, MessageFlags } from "discord.js";
 import { prisma } from "../utils";
 import { syncAllGuilds, hasStaffPermission, hasAdminPermission, arePermissionsConfigured } from "../services";
 
@@ -27,7 +27,7 @@ export async function handleSystem(
             }
         }
 
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply();
 
         try {
             const result = await syncAllGuilds(client.guilds.cache);
@@ -65,7 +65,7 @@ export async function handleSystem(
 
         await interaction.reply({
             content: `✅ 設定を更新しました: \`${key}\` = \`${value}\``,
-            ephemeral: true,
+            flags: MessageFlags.SuppressNotifications,
         });
     } else if (subcommand === "show") {
         const configs = await prisma.systemConfig.findMany();
@@ -80,7 +80,7 @@ export async function handleSystem(
             .setDescription(configList || "設定がありません")
             .setTimestamp();
 
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.SuppressNotifications });
     }
 }
 
