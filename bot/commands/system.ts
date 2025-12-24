@@ -1,32 +1,6 @@
 import { ChatInputCommandInteraction, EmbedBuilder, Client } from "discord.js";
 import { prisma } from "../utils";
-import { syncAllGuilds } from "../services";
-
-/**
- * Check if user has admin permission
- */
-async function hasAdminPermission(userId: string): Promise<boolean> {
-    const adminConfig = await prisma.systemConfig.findUnique({
-        where: { key: "admin_role_ids" },
-    });
-
-    if (!adminConfig) return false;
-
-    const adminRoleIds = adminConfig.value.split(",").map((id) => id.trim());
-
-    const memberships = await prisma.userGuildMembership.findMany({
-        where: { discordUserId: userId },
-    });
-
-    for (const membership of memberships) {
-        const userRoles = JSON.parse(membership.roleIds || "[]");
-        if (userRoles.some((roleId: string) => adminRoleIds.includes(roleId))) {
-            return true;
-        }
-    }
-
-    return false;
-}
+import { syncAllGuilds, hasStaffPermission, hasAdminPermission } from "../services";
 
 /**
  * Handle /system command
@@ -37,8 +11,18 @@ export async function handleSystem(
 ): Promise<void> {
     const subcommand = interaction.options.getSubcommand();
 
-    // Sync command can be run by anyone with bot access
+    // Check permissions based on subcommand
     if (subcommand === "sync") {
+        // Sync requires staff permission
+        const hasPermission = await hasStaffPermission(interaction.user.id);
+        if (!hasPermission) {
+            await interaction.reply({
+                content: "❌ このコマンドを実行する権限がありません。",
+                ephemeral: true,
+            });
+            return;
+        }
+
         await interaction.deferReply({ ephemeral: true });
 
         try {
@@ -55,8 +39,8 @@ export async function handleSystem(
         return;
     }
 
+    // Config and show require admin permission
     const hasPermission = await hasAdminPermission(interaction.user.id);
-
     if (!hasPermission) {
         await interaction.reply({
             content: "❌ このコマンドを実行する権限がありません。",
@@ -95,3 +79,4 @@ export async function handleSystem(
         await interaction.reply({ embeds: [embed], ephemeral: true });
     }
 }
+

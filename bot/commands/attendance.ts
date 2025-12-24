@@ -1,5 +1,7 @@
 import { ChatInputCommandInteraction, EmbedBuilder } from "discord.js";
 import { prisma, getTodayJST, getAttributeLabel } from "../utils";
+import { hasStaffPermission } from "../services";
+
 
 const MAX_DISPLAY = 100;
 
@@ -205,6 +207,16 @@ async function handleAbsent(interaction: ChatInputCommandInteraction): Promise<v
  * Handle /attendance command
  */
 export async function handleAttendance(interaction: ChatInputCommandInteraction): Promise<void> {
+    // Check staff permission
+    const hasPermission = await hasStaffPermission(interaction.user.id);
+    if (!hasPermission) {
+        await interaction.reply({
+            content: "❌ このコマンドを実行する権限がありません。",
+            ephemeral: true,
+        });
+        return;
+    }
+
     const subcommand = interaction.options.getSubcommand();
 
     switch (subcommand) {
