@@ -176,16 +176,25 @@ export async function GET(request: NextRequest) {
         const { createSessionToken } = await import("@/app/lib/session");
         const sessionToken = await createSessionToken(discordUser.id);
 
+        console.log("[DEBUG] Creating session token for:", discordUser.id);
+        console.log("[DEBUG] Token length:", sessionToken.length);
+
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.url.split('/api')[0];
         const response = NextResponse.redirect(new URL("/ticket", baseUrl));
 
-        response.cookies.set("session", sessionToken, {
+        // Set cookie with explicit domain
+        const cookieOptions = {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
+            sameSite: "lax" as const,
             path: "/",
             maxAge: 7 * 24 * 60 * 60, // 7 days
-        });
+        };
+
+        response.cookies.set("session", sessionToken, cookieOptions);
+
+        console.log("[DEBUG] Cookie set with options:", JSON.stringify(cookieOptions));
+        console.log("[DEBUG] Response cookies:", response.cookies.getAll());
 
         response.cookies.delete("discord_oauth_state");
 
