@@ -3,6 +3,9 @@ import { getSession } from "@/app/lib/session";
 import prisma from "@/app/lib/prisma";
 import TicketCard from "./TicketCard";
 
+// Force dynamic rendering to ensure cookies are always available
+export const dynamic = 'force-dynamic';
+
 export default async function TicketPage() {
     console.log("[DEBUG] TicketPage - Starting session check");
     const user = await getSession();
