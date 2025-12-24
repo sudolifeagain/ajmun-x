@@ -276,9 +276,59 @@ sudo nginx -t && sudo systemctl enable nginx && sudo systemctl start nginx
 
 | 設定 | 値 |
 |-----|-----|
-| Application domain | `your-domain.com` |
+| Application domain | `ajmun37.re4lity.com` |
 | Path | `/staff` |
 | Policy | Allow - 指定メールアドレス |
+
+### 5.4 Prisma Studio (データベース管理GUI)
+
+ブラウザからDBを確認・編集できるツール。Access保護付き。
+
+#### DNS追加
+
+| タイプ | 名前 | 内容 | プロキシ |
+|-------|------|------|----|
+| A | `db` | OCI パブリック IP | オレンジ雲 |
+
+#### Nginx設定
+
+```bash
+sudo nano /etc/nginx/conf.d/prisma-studio.conf
+```
+
+```nginx
+server {
+    listen 80;
+    server_name db.ajmun37.re4lity.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:5555;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+#### Cloudflare Access
+
+| 設定 | 値 |
+|-----|-----|
+| Application domain | `db.ajmun37.re4lity.com` |
+| Policy | Allow - 管理者メールのみ |
+
+#### PM2起動
+
+```bash
+pm2 start "npx prisma studio --port 5555 --browser none" --name ajmun-db --cwd ~/ajmun-x
+pm2 save
+```
+
+アクセス: https://db.ajmun37.re4lity.com
 
 ---
 
