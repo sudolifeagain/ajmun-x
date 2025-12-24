@@ -60,6 +60,7 @@ function syncAllAttendance() {
         const headers = [
             "Discord ID",
             "グローバル名",
+            "ニックネーム",
             "所属会議",
             "属性",
             "出席状況",
@@ -76,6 +77,10 @@ function syncAllAttendance() {
                 if (!existing.guilds.includes(m.guildName)) {
                     existing.guilds.push(m.guildName);
                 }
+                // ニックネームを追加（空でなく、重複しないように）
+                if (m.nickname && !existing.nicknames.includes(m.nickname)) {
+                    existing.nicknames.push(m.nickname);
+                }
                 // 出席状況は1つでも出席ならtrue
                 if (m.attended) {
                     existing.attended = true;
@@ -85,6 +90,7 @@ function syncAllAttendance() {
                 userMap.set(m.discordUserId, {
                     discordUserId: m.discordUserId,
                     globalName: m.globalName,
+                    nicknames: m.nickname ? [m.nickname] : [],
                     guilds: [m.guildName],
                     attribute: m.attribute,
                     attended: m.attended,
@@ -105,6 +111,7 @@ function syncAllAttendance() {
         const rows = aggregatedUsers.map(u => [
             u.discordUserId,
             u.globalName,
+            u.nicknames.join(", "),
             u.guilds.join(", "),
             getAttributeLabel(u.attribute),
             u.attended ? "✅ 済" : "❌ 未",
