@@ -281,6 +281,12 @@ sqlite3 prisma/prod.db "SELECT discordUserId, globalName FROM User;"
 
 # 出席ログ確認
 sqlite3 prisma/prod.db "SELECT * FROM AttendanceLog;"
+
+# 出席ログ詳細（JST時刻付き）
+sqlite3 prisma/prod.db "SELECT u.globalName, a.checkInDate, datetime(a.checkInTimestamp/1000, 'unixepoch', '+9 hours') as checkInJST, a.attribute FROM AttendanceLog a JOIN User u ON a.discordUserId = u.discordUserId ORDER BY a.checkInTimestamp DESC;"
+
+# 特定ユーザーの出席履歴
+sqlite3 prisma/prod.db "SELECT * FROM AttendanceLog WHERE discordUserId = 'ユーザーID' ORDER BY checkInTimestamp DESC;"
 ```
 
 ### Prisma クリーンビルド
