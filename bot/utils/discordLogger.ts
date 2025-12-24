@@ -138,8 +138,9 @@ export async function log(
             },
         };
 
-        const payload: { content?: string; embeds: typeof embed[] } = {
+        const payload: { content?: string; embeds: typeof embed[]; flags: number } = {
             embeds: [embed],
+            flags: 4096, // SUPPRESS_NOTIFICATIONS - Silent message
         };
 
         if (shouldMention) {
