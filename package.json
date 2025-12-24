@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "bot": "npx tsx bot/index.ts",
-    "slides": "marp docs/slides --html --pdf -o docs/slides",
+    "slides": "marp docs/slides/*.md --html --pdf",
     "slides:preview": "marp -p docs/slides"
   },
   "dependencies": {
