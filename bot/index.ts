@@ -17,7 +17,7 @@ import {
     Routes,
 } from "discord.js";
 import { config } from "dotenv";
-import { handleAttendance, handleSystem } from "./commands";
+import { handleAttendance, handleSystem, handleSystemButton } from "./commands";
 import { handleMemberAdd, handleMemberRemove, handleMemberUpdate } from "./events";
 import { syncAllGuilds } from "./services";
 import logger from "./utils/discordLogger";
@@ -135,6 +135,24 @@ const commands = [
         )
         .addSubcommand((sub) =>
             sub.setName("sync").setDescription("全サーバーのメンバーを同期")
+        )
+        .addSubcommand((sub) =>
+            sub
+                .setName("delete")
+                .setDescription("設定を削除")
+                .addStringOption((opt) =>
+                    opt
+                        .setName("key")
+                        .setDescription("削除する設定キー")
+                        .setRequired(true)
+                        .addChoices(
+                            { name: "スタッフロールID", value: "staff_role_ids" },
+                            { name: "会議運営者ロールID", value: "organizer_role_ids" },
+                            { name: "管理者ロールID", value: "admin_role_ids" },
+                            { name: "運営サーバーID", value: "operation_guild_id" },
+                            { name: "会議サーバーID", value: "target_guild_ids" }
+                        )
+                )
         ),
 ];
 
@@ -171,6 +189,17 @@ client.once("ready", async () => {
 
 // Event: Slash command interaction
 client.on("interactionCreate", async (interaction) => {
+    // Handle button interactions
+    if (interaction.isButton()) {
+        try {
+            const handled = await handleSystemButton(interaction);
+            if (handled) return;
+        } catch (error) {
+            console.error("Button error:", error);
+        }
+        return;
+    }
+
     if (!interaction.isChatInputCommand()) return;
 
     try {
