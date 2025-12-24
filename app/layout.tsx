@@ -15,9 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "第37回全日本大会 - 入退場管理",
   description: "第37回 模擬国連会議全日本大会 入退場管理システム",
-  icons: {
-    icon: "/logo.png",
-  },
+
   robots: {
     index: false,
     follow: false,
