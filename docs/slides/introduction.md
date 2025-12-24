@@ -40,30 +40,6 @@ style: |
     font-size: 2.5em;
     color: #1e40af;
   }
-  .two-column {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2em;
-  }
-  .highlight-box {
-    background-color: #e0f2fe;
-    border-left: 4px solid #2563eb;
-    border-radius: 8px;
-    padding: 1em;
-    margin: 0.5em 0;
-  }
-  .step-number {
-    display: inline-block;
-    background: linear-gradient(135deg, #2563eb, #7c3aed);
-    color: #ffffff;
-    width: 2em;
-    height: 2em;
-    line-height: 2em;
-    border-radius: 50%;
-    text-align: center;
-    font-weight: bold;
-    margin-right: 0.5em;
-  }
   table {
     border-collapse: collapse;
   }
@@ -81,6 +57,13 @@ style: |
     padding: 0.5em 1em;
     margin: 0.5em 0;
   }
+  img {
+    max-height: 300px;
+    max-width: 90%;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
+  }
 ---
 
 <!-- _class: title -->
@@ -94,88 +77,44 @@ Discord認証 × QRコードによる受付システム
 
 # 目次
 
-1. **導入の背景** — 従来の課題と解決策
-2. **参加者向け** — QRコード取得と受付の流れ
-3. **スタッフ向け** — スキャナーとDiscordコマンド
-4. **FAQ**
+1. 導入の背景 — 従来の課題と解決策
+2. 参加者向け — QRコード取得と受付の流れ
+3. スタッフ向け — スキャナーとDiscordコマンド
+4. FAQ
 
 ---
 
 # 従来の受付の課題
 
-<div class="two-column">
+### 混雑・時間
+- 6会議の受付が一箇所に集中し、廊下まで溢れる
+- スプレッドシートに手動記録、一人ずつ名前を確認して入力
 
-<div>
-
-### 混雑
-- 6会議の受付が一箇所に集中
-- 参加者が廊下まで溢れる
-
-### 時間
-- スプレッドシートに手動記録
-- 一人ずつ名前を確認して入力
-
-</div>
-
-<div>
-
-### 担当者の固定
-- 会議フロントが受付を兼任
-- 担当者不在時の対応が困難
-
-### 状況把握
+### 担当者の固定・状況把握
+- 会議フロントが受付を兼任、担当者不在時の対応が困難
 - リアルタイムでの出席確認ができない
-
-</div>
-
-</div>
 
 ---
 
 # 新システムによる解決
 
-<div class="highlight-box">
-
-### 受付時間の短縮
-QRコードスキャンで即座に完了。手入力不要。
-
-</div>
-
-<div class="highlight-box">
-
-### 担当者の分散
-スマホがあれば誰でも受付可能。特定担当者への依存を解消。
-
-</div>
-
-<div class="highlight-box">
-
-### リアルタイム確認
-Discordコマンドで出席状況を即時確認。
-
-</div>
+| 課題 | 解決策 |
+|------|--------|
+| 受付時間 | QRスキャンで即完了。手入力不要 |
+| 担当者固定 | スマホがあれば誰でも受付可能 |
+| 状況把握 | Discordコマンドで即時確認 |
 
 ---
 
 # システム構成
 
-```kroki-mermaid
-flowchart TB
-    subgraph Discord
-        D[普段使っているアカウント]
-    end
-    
-    subgraph System[受付システム]
-        QR[QRコード発行]
-        Scan[スキャン]
-        Log[出席データ自動記録]
-        QR --> Scan --> Log
-    end
-    
-    D -->|ログイン| QR
-```
+<center>
 
 新規アカウント作成は不要。既存のDiscordアカウントを使用。
+
+![システム構成図](./system-diagram.svg)
+
+</center>
 
 ---
 
@@ -187,35 +126,25 @@ flowchart TB
 
 # 事前準備 (1) システムにアクセス
 
-<div class="step-number">1</div> **受付システムのURLを開く**
-
-URLは後日Discordで案内する。
+受付システムのURLを開く: https://ajmun37.re4lity.com
 
 ---
 
 # 事前準備 (2) Discordでログイン
 
-<div class="step-number">2</div> **「Discordでログイン」をクリック**
+「Discordでログイン」をクリック
 
-<div class="highlight-box">
-
-### PCの場合
+**PCの場合**
 Discordアプリが自動起動し、ワンクリックで認証完了。パスワード入力不要。
 
-</div>
-
-<div class="highlight-box">
-
-### スマホの場合
+**スマホの場合**
 Discordアプリが開く。事前にアプリでログインしておくとスムーズ。
-
-</div>
 
 ---
 
 # 事前準備 (3) QRコードを取得
 
-<div class="step-number">3</div> **表示されたQRコードを保存**
+表示されたQRコードを保存
 
 - 各自専用のQRコードが発行される
 - スクリーンショットで保存可能
@@ -225,15 +154,12 @@ Discordアプリが開く。事前にアプリでログインしておくとス�
 
 # 当日の受付
 
-<div class="step-number">1</div> 会場に到着
+1. 会場に到着
+2. スマホでQRコードを表示（保存した画像でも可）
+3. 受付スタッフにQRコードを提示
+4. スキャン完了
 
-<div class="step-number">2</div> スマホでQRコードを表示（保存した画像でも可）
-
-<div class="step-number">3</div> 受付スタッフにQRコードを提示
-
-<div class="step-number">4</div> スキャン完了
-
-**所要時間: 約3秒**
+所要時間: 約3秒
 
 ---
 
@@ -245,59 +171,49 @@ Discordアプリが開く。事前にアプリでログインしておくとス�
 
 # スキャナーの使い方
 
-<div class="step-number">1</div> **スタッフ用ページにアクセス**
-
-専用URL（Cloudflare Accessで保護）
-
-<div class="step-number">2</div> **カメラを許可**
-
-ブラウザのカメラアクセス許可をON
-
-<div class="step-number">3</div> **QRコードをスキャン**
-
-参加者のスマホ画面にカメラを向ける
+1. スタッフ用ページにアクセス
+   - URL: https://ajmun37.re4lity.com/staff
+   - Cloudflare Accessで保護
+2. カメラを許可
+3. 参加者のスマホ画面にカメラを向ける
 
 ---
 
 # スキャン結果の見方
 
-スキャン後、スタッフ側の画面にユーザー情報がオーバーレイ表示される。
-
 | ステータス | 表示内容 |
 |-----------|---------|
-| **成功** | ユーザー名、アバター、属性バッジ、所属サーバー |
-| **重複** | 同上 + 「既に出席済みです」メッセージ |
-| **エラー** | エラーメッセージのみ |
+| 成功 | ユーザー名、アバター、属性、所属サーバー |
+| 重複 | 同上 + 「本日入場済み」メッセージ |
+| エラー | エラーメッセージのみ |
 
-<div class="highlight-box">
-
-### 操作
-- 3秒後に自動で待機状態に戻る
-- ダブルタップで即時リセット
-- 振動フィードバックはAndroidのみ対応（iOSは非対応）
-
-</div>
+- 3秒後に自動リセット / ダブルタップで即時リセット
+- 振動フィードバックはAndroidのみ（iOS非対応）
 
 ---
 
-# Discordコマンド
+# Discordコマンド（会議フロント/スタッフ向け）
 
-出席状況をDiscordから確認可能。
+organizer（会議フロント）以上のロールで実行可能
 
-```
-/attendance status
-```
-→ 出席済み / 未出席の人数
+| コマンド | 説明 |
+|---------|------|
+| `/attendance status` | 出席済み / 未出席の人数 |
+| `/attendance present` | 出席済み一覧 |
+| `/attendance absent` | 未出席一覧 |
 
-```
-/attendance present
-```
-→ 出席済み一覧
+※ organizerは自分の所属サーバーのみ、staff/adminは全サーバーを確認可能
 
-```
-/attendance absent
-```
-→ 未出席一覧
+---
+
+# Discordコマンド（スタッフ/管理者向け）
+
+| コマンド | 必要権限 | 説明 |
+|---------|---------|------|
+| `/system sync` | staff以上 | メンバー情報を同期 |
+| `/system show` | admin | 現在の設定を表示 |
+| `/system config` | admin | 設定を変更 |
+| `/system delete` | admin | 設定を削除 |
 
 ---
 
@@ -323,37 +239,23 @@ Discordアプリが開く。事前にアプリでログインしておくとス�
 事前にスクリーンショットを保存しておけば、オフラインでも表示可能。
 
 ### QRコードを他人に使われたら？
-QRコードはDiscordアカウントと紐付いている。他人が使用しても本人の名前で登録されるため、不正使用のメリットがない。
+QRコードはDiscordアカウントと紐付き。他人が使用しても本人の名前で登録されるため不正使用のメリットがない。
 
 ---
 
 # まとめ
-
-<div class="two-column">
-
-<div>
 
 ### 参加者
 1. 事前にシステムにログイン
 2. QRコードを保存
 3. 当日、受付でスキャン
 
-**準備時間: 約1分**
-
-</div>
-
-<div>
+準備時間: 約1分
 
 ### スタッフ
 1. スタッフ用ページを開く
 2. カメラを許可
 3. QRコードをスキャン
-
-**誰でも対応可能**
-
-</div>
-
-</div>
 
 ---
 
@@ -373,7 +275,7 @@ QRコードはDiscordアカウントと紐付いている。他人が使用し�
 | サーバー | Oracle Cloud (無料枠) |
 | セキュリティ | Cloudflare Access |
 
-**運用コスト**: ドメイン代のみ（年間約1,000〜2,000円）
+運用コスト: ドメイン代のみ（年間約1,000〜2,000円）
 
 ---
 
@@ -381,18 +283,22 @@ QRコードはDiscordアカウントと紐付いている。他人が使用し�
 
 | 指標 | 従来 | 新システム |
 |------|------|-----------|
-| 受付時間/人 | 30秒〜1分 | **約3秒** |
-| 受付担当者 | 会議フロント限定 | **誰でも** |
-| 出席確認 | スプシを目視 | **コマンド一発** |
-| 待ち行列 | 廊下まで溢れる | **ほぼ解消** |
+| 受付時間/人 | 30秒〜1分 | 約3秒 |
+| 受付担当者 | 会議フロント限定 | 誰でも |
+| 出席確認 | スプシを目視 | コマンド一発 |
+| 待ち行列 | 廊下まで溢れる | ほぼ解消 |
 
 ---
 
-# 参考情報
+# リンク
 
-- **システムURL**: 後日Discordで案内
-- **運営Discord**: 既存サーバー
-- **本スライド**: 後日共有
+| ページ | URL |
+|--------|-----|
+| メイン | https://ajmun37.re4lity.com |
+| 使い方ガイド | https://ajmun37.re4lity.com/guide |
+| スタッフ用スキャナ | https://ajmun37.re4lity.com/staff |
+| 利用規約 | https://ajmun37.re4lity.com/terms |
+| プライバシーポリシー | https://ajmun37.re4lity.com/privacy |
 
 ---
 

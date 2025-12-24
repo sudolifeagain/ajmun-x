@@ -8,8 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "bot": "npx tsx bot/index.ts",
-    "slides": "marp docs/slides/*.md --html --pdf",
-    "slides:preview": "marp -p docs/slides"
+    "slides": "marp -c marp.config.js docs/slides/*.md --pdf --allow-local-files",
+    "slides:preview": "marp -c marp.config.js -p docs/slides"
   },
   "dependencies": {
     "@prisma/client": "^6.19.1",
