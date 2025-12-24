@@ -14,7 +14,7 @@ function getJwtSecret(): Uint8Array {
     return new TextEncoder().encode(secret);
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
     // Check if the path requires authentication
