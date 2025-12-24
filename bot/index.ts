@@ -1,22 +1,18 @@
 /**
  * Discord Bot Entry Point
- * 
+ *
  * This is the main entry point for the Discord bot.
  * All functionality is organized into separate modules:
- * - commands/ - Slash command handlers
- * - events/   - Discord event handlers
- * - services/ - Business logic
- * - utils/    - Shared utilities
+ * - commands/           - Slash command handlers
+ * - commandDefinitions  - Slash command definitions
+ * - events/             - Discord event handlers
+ * - services/           - Business logic
+ * - utils/              - Shared utilities
  */
 
-import {
-    Client,
-    GatewayIntentBits,
-    SlashCommandBuilder,
-    REST,
-    Routes,
-} from "discord.js";
+import { Client, GatewayIntentBits, REST, Routes } from "discord.js";
 import { config } from "dotenv";
+import { commands } from "./commandDefinitions";
 import { handleAttendance, handleSystem, handleSystemButton } from "./commands";
 import { handleMemberAdd, handleMemberRemove, handleMemberUpdate } from "./events";
 import { syncAllGuilds } from "./services";
@@ -31,130 +27,6 @@ const CLIENT_ID = process.env.DISCORD_CLIENT_ID!;
 const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
 });
-
-// Define slash commands
-const commands = [
-    new SlashCommandBuilder()
-        .setName("attendance")
-        .setDescription("出席状況を確認")
-        .addSubcommand((sub) =>
-            sub
-                .setName("status")
-                .setDescription("出席状況サマリーを表示")
-                .addStringOption((opt) =>
-                    opt
-                        .setName("conference")
-                        .setDescription("会議名 (all で全会議)")
-                        .setRequired(false)
-                )
-                .addStringOption((opt) =>
-                    opt
-                        .setName("attribute")
-                        .setDescription("属性で絞り込み")
-                        .setRequired(false)
-                        .addChoices(
-                            { name: "参加者", value: "participant" },
-                            { name: "会議運営者", value: "organizer" },
-                            { name: "スタッフ", value: "staff" }
-                        )
-                )
-        )
-        .addSubcommand((sub) =>
-            sub
-                .setName("present")
-                .setDescription("本日出席済みユーザー一覧")
-                .addStringOption((opt) =>
-                    opt
-                        .setName("conference")
-                        .setDescription("会議名 (all で全会議)")
-                        .setRequired(false)
-                )
-                .addStringOption((opt) =>
-                    opt
-                        .setName("attribute")
-                        .setDescription("属性で絞り込み")
-                        .setRequired(false)
-                        .addChoices(
-                            { name: "参加者", value: "participant" },
-                            { name: "会議運営者", value: "organizer" },
-                            { name: "スタッフ", value: "staff" }
-                        )
-                )
-        )
-        .addSubcommand((sub) =>
-            sub
-                .setName("absent")
-                .setDescription("本日未出席ユーザー一覧")
-                .addStringOption((opt) =>
-                    opt
-                        .setName("conference")
-                        .setDescription("会議名 (all で全会議)")
-                        .setRequired(false)
-                )
-                .addStringOption((opt) =>
-                    opt
-                        .setName("attribute")
-                        .setDescription("属性で絞り込み")
-                        .setRequired(false)
-                        .addChoices(
-                            { name: "参加者", value: "participant" },
-                            { name: "会議運営者", value: "organizer" },
-                            { name: "スタッフ", value: "staff" }
-                        )
-                )
-        ),
-    new SlashCommandBuilder()
-        .setName("system")
-        .setDescription("システム設定 (管理者のみ)")
-        .addSubcommand((sub) =>
-            sub
-                .setName("config")
-                .setDescription("設定を変更")
-                .addStringOption((opt) =>
-                    opt
-                        .setName("key")
-                        .setDescription("設定キー")
-                        .setRequired(true)
-                        .addChoices(
-                            { name: "スタッフロールID", value: "staff_role_ids" },
-                            { name: "会議運営者ロールID", value: "organizer_role_ids" },
-                            { name: "管理者ロールID", value: "admin_role_ids" },
-                            { name: "運営サーバーID", value: "operation_guild_id" },
-                            { name: "会議サーバーID", value: "target_guild_ids" }
-                        )
-                )
-                .addStringOption((opt) =>
-                    opt
-                        .setName("value")
-                        .setDescription("設定値 (カンマ区切りで複数指定可)")
-                        .setRequired(true)
-                )
-        )
-        .addSubcommand((sub) =>
-            sub.setName("show").setDescription("現在の設定を表示")
-        )
-        .addSubcommand((sub) =>
-            sub.setName("sync").setDescription("全サーバーのメンバーを同期")
-        )
-        .addSubcommand((sub) =>
-            sub
-                .setName("delete")
-                .setDescription("設定を削除")
-                .addStringOption((opt) =>
-                    opt
-                        .setName("key")
-                        .setDescription("削除する設定キー")
-                        .setRequired(true)
-                        .addChoices(
-                            { name: "スタッフロールID", value: "staff_role_ids" },
-                            { name: "会議運営者ロールID", value: "organizer_role_ids" },
-                            { name: "管理者ロールID", value: "admin_role_ids" },
-                            { name: "運営サーバーID", value: "operation_guild_id" },
-                            { name: "会議サーバーID", value: "target_guild_ids" }
-                        )
-                )
-        ),
-];
 
 // Register slash commands
 async function registerCommands(): Promise<void> {
