@@ -73,8 +73,8 @@ https://ajmun37.re4lity.com にアクセス
 
 Discordの認証画面が開く
 
-PCの場合: Discordアプリが自動起動
-スマホの場合: Discordアプリが開く
+PCの場合: Discordアプリまたはブラウザで認証画面が開く
+スマホの場合: Discordアプリで認証画面が開く
 
 「認証」ボタンをクリック
 
