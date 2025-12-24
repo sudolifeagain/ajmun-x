@@ -54,6 +54,15 @@ export default async function Home({ searchParams }: Props) {
             <br />
             識別情報のみを取得します（サーバー一覧は取得しません）。
           </p>
+
+          <div className="mt-4 text-center">
+            <Link
+              href="/guide"
+              className="inline-flex items-center gap-1 text-sm text-purple-400 hover:text-purple-300 transition-colors"
+            >
+              📱 使い方ガイドはこちら →
+            </Link>
+          </div>
         </div>
 
         <p className="mt-6 text-center text-xs text-slate-500">
