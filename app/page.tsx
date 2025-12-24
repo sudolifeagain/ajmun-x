@@ -32,7 +32,7 @@ export default async function Home({ searchParams }: Props) {
               第37回 模擬国連会議全日本大会
             </h1>
             <p className="text-sm text-slate-300">
-              オフラインイベント入退場管理システム
+              入退場管理システム
             </p>
           </div>
 
