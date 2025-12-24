@@ -131,9 +131,12 @@ sqlite3 prisma/dev.db "INSERT INTO SystemConfig (key, value, description) VALUES
 
 | 設定キー | 用途 | 必須 |
 |---------|------|------|
-| `admin_role_ids` | 管理者ロール | ✅ |
-| `staff_role_ids` | スタッフロール | 任意 |
+| `admin_role_ids` | 管理者ロール/ユーザーID | ✅ |
+| `staff_role_ids` | スタッフロール/ユーザーID | 任意 |
 | `operation_guild_id` | 運営サーバーID（属性判定用） | 任意 |
+| `target_guild_ids` | 対象サーバーID（ログイン許可） | 任意 |
+
+> 💡 `target_guild_ids` が**未設定**の場合は全サーバーが対象、**設定済み**の場合は指定サーバーのみログイン可能
 
 ---
 
@@ -153,7 +156,9 @@ sqlite3 prisma/dev.db "INSERT INTO SystemConfig (key, value, description) VALUES
 | `/attendance status` | staff以上 |
 | `/attendance present/absent` | staff以上 |
 | `/system sync` | 権限未設定時：誰でも / 設定後：staff以上 |
-| `/system show/config` | admin |
+| `/system show` | admin |
+| `/system config <key> <value>` | admin |
+| `/system delete <key>` | admin（確認ダイアログ付き） |
 
 ---
 
