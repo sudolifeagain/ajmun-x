@@ -78,6 +78,10 @@ QR_SECRET=your-super-secret-key-change-this
 
 # 本番環境用（オプション）
 NEXT_PUBLIC_BASE_URL=http://localhost:3000
+
+# Discord Webhookログ（オプション - 設定しない場合は機能無効）
+# DISCORD_LOG_WEBHOOK_URL=https://discord.com/api/webhooks/xxx/xxx
+# DISCORD_LOG_MENTION_USER_ID=507198375473446923
 ```
 
 ### 環境変数一覧
@@ -90,6 +94,8 @@ NEXT_PUBLIC_BASE_URL=http://localhost:3000
 | `DISCORD_BOT_TOKEN` | Bot認証トークン | Developer Portal → Bot |
 | `DATABASE_URL` | SQLiteデータベースパス | 自分で設定 |
 | `QR_SECRET` | QRトークン署名用キー | 自分で生成（ランダム文字列推奨） |
+| `DISCORD_LOG_WEBHOOK_URL` | ログ送信用Webhook URL（任意） | Discordチャンネル設定 → 連携サービス |
+| `DISCORD_LOG_MENTION_USER_ID` | エラー時メンションするユーザーID（任意） | ユーザーIDをコピー |
 
 ---
 

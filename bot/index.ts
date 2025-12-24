@@ -20,6 +20,7 @@ import { config } from "dotenv";
 import { handleAttendance, handleSystem } from "./commands";
 import { handleMemberAdd, handleMemberRemove, handleMemberUpdate } from "./events";
 import { syncAllGuilds } from "./services";
+import logger from "./utils/discordLogger";
 
 config();
 
@@ -160,6 +161,12 @@ client.once("ready", async () => {
     console.log("Starting initial member sync...");
     const result = await syncAllGuilds(client.guilds.cache);
     console.log(`Initial sync complete: ${result.guilds} guilds, ${result.members} members`);
+
+    // Log bot startup
+    await logger.info("Bot started", {
+        source: "Bot",
+        details: `${result.guilds} guilds, ${result.members} members synced`,
+    });
 });
 
 // Event: Slash command interaction
@@ -177,6 +184,15 @@ client.on("interactionCreate", async (interaction) => {
         }
     } catch (error) {
         console.error("Command error:", error);
+        await logger.error("コマンドエラー", {
+            discordUser: {
+                id: interaction.user.id,
+                name: interaction.user.username,
+            },
+            source: "Bot",
+            details: `コマンド: /${interaction.commandName}`,
+            error,
+        });
         const reply = { content: "❌ コマンド実行中にエラーが発生しました。", ephemeral: true };
         if (interaction.replied || interaction.deferred) {
             await interaction.followUp(reply);

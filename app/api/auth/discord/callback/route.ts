@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash, randomBytes } from "crypto";
 import prisma from "@/app/lib/prisma";
+import logger from "@/app/lib/discordLogger";
 
 interface DiscordUser {
     id: string;
@@ -76,6 +77,7 @@ export async function GET(request: NextRequest) {
         }
 
         const discordUser: DiscordUser = await userResponse.json();
+        const displayName = discordUser.global_name || discordUser.username;
 
         // Build avatar URL
         const avatarUrl = discordUser.avatar
@@ -97,6 +99,11 @@ export async function GET(request: NextRequest) {
 
         // REJECT if not a member of any target guild
         if (!membership) {
+            await logger.warn("ログイン拒否（サーバー未参加）", {
+                discordUser: { id: discordUser.id, name: displayName },
+                source: "Web (OAuth)",
+                details: "対象サーバーに未参加のためアクセス拒否",
+            });
             const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.url.split('/api')[0];
             return NextResponse.redirect(new URL("/?error=access_denied", baseUrl));
         }
@@ -131,12 +138,14 @@ export async function GET(request: NextRequest) {
             where: { discordUserId: discordUser.id },
         });
 
+        const isNewUser = !user;
+
         if (!user) {
             user = await prisma.user.create({
                 data: {
                     discordUserId: discordUser.id,
                     qrToken: generateQrToken(discordUser.id),
-                    globalName: discordUser.global_name || discordUser.username,
+                    globalName: displayName,
                     defaultAvatarUrl: avatarUrl,
                     primaryAttribute: primaryAttribute,
                 },
@@ -148,13 +157,20 @@ export async function GET(request: NextRequest) {
             user = await prisma.user.update({
                 where: { discordUserId: discordUser.id },
                 data: {
-                    globalName: discordUser.global_name || discordUser.username,
+                    globalName: displayName,
                     defaultAvatarUrl: avatarUrl,
                     primaryAttribute: primaryAttribute,
                     ...(needsNewToken && { qrToken: generateQrToken(discordUser.id) }),
                 },
             });
         }
+
+        // Log successful login
+        await logger.info(isNewUser ? "新規ログイン（QR発行）" : "ログイン成功", {
+            discordUser: { id: discordUser.id, name: displayName },
+            source: "Web (OAuth)",
+            details: `属性: ${primaryAttribute}, サーバー: ${membership.guild.guildName}`,
+        });
 
         // Create session cookie
         const sessionToken = Buffer.from(
@@ -179,6 +195,10 @@ export async function GET(request: NextRequest) {
         return response;
     } catch (error) {
         console.error("OAuth callback error:", error);
+        await logger.error("ログインエラー", {
+            source: "Web (OAuth)",
+            error,
+        });
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.url.split('/api')[0];
         return NextResponse.redirect(new URL("/?error=unknown", baseUrl));
     }
