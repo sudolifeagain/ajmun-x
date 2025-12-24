@@ -157,14 +157,60 @@ Slash commands registered.
 ### 5.3 Bot コマンド
 
 Discordサーバーで以下のコマンドを試す:
-- `/attendance status` - 出席状況サマリー
-- `/attendance present` - 出席者一覧
-- `/attendance absent` - 未出席者一覧
-- `/system show` - 現在の設定表示
+- `/attendance status` - 出席状況サマリー（staff権限以上）
+- `/attendance present` - 出席者一覧（staff権限以上）
+- `/attendance absent` - 未出席者一覧（staff権限以上）
+- `/system sync` - メンバー同期（staff権限以上）
+- `/system show` - 現在の設定表示（admin権限）
+- `/system config` - 設定変更（admin権限）
 
 ---
 
-## 6. トラブルシューティング
+## 6. 権限システムの初期設定
+
+Bot コマンドには権限が必要です。初回セットアップでは、データベースに直接管理者ロールを登録する必要があります。
+
+### 6.1 管理者ロールIDの取得
+
+1. Discordの **開発者モード** を有効化
+   - ユーザー設定 → 詳細設定 → 開発者モード を ON
+2. 運営サーバーで管理者ロールを右クリック → 「IDをコピー」
+
+### 6.2 データベースに初期設定を投入
+
+```bash
+# ローカル環境
+sqlite3 prisma/dev.db "INSERT INTO SystemConfig (key, value, description) VALUES ('admin_role_ids', 'ここにロールID', '管理者ロール');"
+
+# 本番環境
+sqlite3 prisma/prod.db "INSERT INTO SystemConfig (key, value, description) VALUES ('admin_role_ids', 'ここにロールID', '管理者ロール');"
+```
+
+> ⚠️ **重要**: この初期設定を行わないと、誰も `/system config` を実行できません。
+
+### 6.3 その他の設定（Discordから実行）
+
+初期管理者の設定後、以下は Discord から設定できます：
+
+```
+/system config operation_guild_id <運営サーバーID>
+/system config staff_role_ids <スタッフロールID>
+/system config organizer_role_ids <会議運営者ロールID>
+/system config target_guild_ids <会議サーバーID1>,<会議サーバーID2>
+```
+
+### 6.4 権限階層
+
+| 権限レベル | 使用可能コマンド | 設定キー |
+|-----------|-----------------|---------|
+| なし | 不可 | - |
+| staff | `/attendance *`, `/system sync` | `staff_role_ids` |
+| admin | 上記 + `/system config`, `/system show` | `admin_role_ids` |
+
+---
+
+
+## 7. トラブルシューティング
 
 ### OAuth エラー: `invalid_redirect_uri`
 
@@ -193,7 +239,7 @@ npx prisma generate
 
 ---
 
-## 7. 本番環境へのデプロイ
+## 8. 本番環境へのデプロイ
 
 ### 環境変数の変更点
 
