@@ -10,7 +10,7 @@ interface PermissionConfig {
 /**
  * Fetch permission configuration from database
  */
-async function getPermissionConfig(): Promise<PermissionConfig> {
+export async function getPermissionConfig(): Promise<PermissionConfig> {
     const [staffConfig, adminConfig] = await Promise.all([
         prisma.systemConfig.findUnique({ where: { key: "staff_role_ids" } }),
         prisma.systemConfig.findUnique({ where: { key: "admin_role_ids" } }),
@@ -73,4 +73,13 @@ export async function hasStaffPermission(userId: string): Promise<boolean> {
 export async function hasAdminPermission(userId: string): Promise<boolean> {
     const level = await getUserPermissionLevel(userId);
     return level === "admin";
+}
+
+/**
+ * Check if any permissions are configured
+ * Returns false if no staff or admin roles are set (initial setup mode)
+ */
+export async function arePermissionsConfigured(): Promise<boolean> {
+    const config = await getPermissionConfig();
+    return config.staffRoleIds.length > 0 || config.adminRoleIds.length > 0;
 }

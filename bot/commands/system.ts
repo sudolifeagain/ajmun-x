@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, EmbedBuilder, Client } from "discord.js";
 import { prisma } from "../utils";
-import { syncAllGuilds, hasStaffPermission, hasAdminPermission } from "../services";
+import { syncAllGuilds, hasStaffPermission, hasAdminPermission, arePermissionsConfigured } from "../services";
 
 /**
  * Handle /system command
@@ -13,14 +13,18 @@ export async function handleSystem(
 
     // Check permissions based on subcommand
     if (subcommand === "sync") {
-        // Sync requires staff permission
-        const hasPermission = await hasStaffPermission(interaction.user.id);
-        if (!hasPermission) {
-            await interaction.reply({
-                content: "❌ このコマンドを実行する権限がありません。",
-                ephemeral: true,
-            });
-            return;
+        // Allow sync for anyone if no permissions are configured (initial setup mode)
+        const permissionsConfigured = await arePermissionsConfigured();
+        if (permissionsConfigured) {
+            // Sync requires staff permission when permissions are configured
+            const hasPermission = await hasStaffPermission(interaction.user.id);
+            if (!hasPermission) {
+                await interaction.reply({
+                    content: "❌ このコマンドを実行する権限がありません。",
+                    ephemeral: true,
+                });
+                return;
+            }
         }
 
         await interaction.deferReply({ ephemeral: true });
