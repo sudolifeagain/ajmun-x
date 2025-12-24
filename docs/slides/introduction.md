@@ -159,7 +159,7 @@ Discordコマンドで出席状況を即時確認。
 
 # システム構成
 
-```mermaid
+```kroki-mermaid
 flowchart TB
     subgraph Discord
         D[普段使っているアカウント]
