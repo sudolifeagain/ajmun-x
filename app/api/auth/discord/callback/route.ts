@@ -180,23 +180,37 @@ export async function GET(request: NextRequest) {
         console.log("[DEBUG] Token length:", sessionToken.length);
 
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.url.split('/api')[0];
-        const response = NextResponse.redirect(new URL("/ticket", baseUrl));
+        const redirectUrl = new URL("/ticket", baseUrl).toString();
 
-        // Set cookie with explicit domain
-        const cookieOptions = {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax" as const,
-            path: "/",
-            maxAge: 7 * 24 * 60 * 60, // 7 days
-        };
+        // Use HTML response with meta refresh to ensure cookie is set before redirect
+        // This works around browser issues with cookies on 307 redirects
+        const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="refresh" content="0;url=${redirectUrl}">
+    <script>window.location.href="${redirectUrl}";</script>
+</head>
+<body>
+    <p>Redirecting...</p>
+</body>
+</html>`;
 
-        response.cookies.set("session", sessionToken, cookieOptions);
+        const response = new NextResponse(html, {
+            status: 200,
+            headers: {
+                "Content-Type": "text/html",
+            },
+        });
 
-        console.log("[DEBUG] Cookie set with options:", JSON.stringify(cookieOptions));
-        console.log("[DEBUG] Response cookies:", response.cookies.getAll());
+        // Set cookie
+        const cookieValue = `session=${sessionToken}; Path=/; Max-Age=604800; HttpOnly; Secure; SameSite=Lax`;
+        response.headers.append("Set-Cookie", cookieValue);
 
-        response.cookies.delete("discord_oauth_state");
+        // Delete oauth state cookie
+        response.headers.append("Set-Cookie", "discord_oauth_state=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT");
+
+        console.log("[DEBUG] Cookie header set:", cookieValue.substring(0, 50) + "...");
 
         return response;
     } catch (error) {
