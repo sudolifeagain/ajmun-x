@@ -1,14 +1,17 @@
 import { ChatInputCommandInteraction, EmbedBuilder } from "discord.js";
 import { prisma, getTodayJST, getAttributeLabel } from "../utils";
-import { hasStaffPermission } from "../services";
-
+import { getOrganizerGuildIds } from "../services";
 
 const MAX_DISPLAY = 100;
 
 /**
  * Resolve conference name to guild ID
+ * If allowedGuildIds is provided, only those guilds can be resolved
  */
-async function resolveConference(conference: string | null): Promise<{
+async function resolveConference(
+    conference: string | null,
+    allowedGuildIds: string[]
+): Promise<{
     guildId: string | null;
     guildName: string | null;
     error?: string;
@@ -20,6 +23,8 @@ async function resolveConference(conference: string | null): Promise<{
         where: {
             guildName: { contains: conference },
             isTargetGuild: true,
+            // If allowedGuildIds is specified (organizer), filter by those
+            ...(allowedGuildIds.length > 0 && { guildId: { in: allowedGuildIds } }),
         },
     });
     if (!guild) {
@@ -40,30 +45,43 @@ function buildFilterDescription(guildName: string | null, attribute: string | nu
 
 /**
  * Handle /attendance status command
+ * @param allowedGuildIds Empty array = all guilds, non-empty = only those guilds
  */
-async function handleStatus(interaction: ChatInputCommandInteraction): Promise<void> {
+async function handleStatus(
+    interaction: ChatInputCommandInteraction,
+    allowedGuildIds: string[]
+): Promise<void> {
     const conference = interaction.options.getString("conference");
     const attribute = interaction.options.getString("attribute");
     const today = getTodayJST();
 
-    const { guildId: targetGuildId, guildName, error } = await resolveConference(conference);
+    // For organizers, if no conference specified, force filter to their guilds
+    const { guildId: targetGuildId, guildName, error } = await resolveConference(conference, allowedGuildIds);
     if (error) {
         await interaction.reply({ content: `❌ ${error}`, ephemeral: true });
         return;
+    }
+
+    // Build guild filter
+    let guildFilter: string[] | null = null;
+    if (targetGuildId) {
+        guildFilter = [targetGuildId];
+    } else if (allowedGuildIds.length > 0) {
+        guildFilter = allowedGuildIds;
     }
 
     const presentCount = await prisma.attendanceLog.count({
         where: {
             checkInDate: today,
             ...(attribute && { attribute }),
-            ...(targetGuildId && { primaryGuildId: targetGuildId }),
+            ...(guildFilter && { primaryGuildId: { in: guildFilter } }),
         },
     });
 
-    const totalUsers = targetGuildId
+    const totalUsers = guildFilter
         ? await prisma.userGuildMembership.count({
             where: {
-                guildId: targetGuildId,
+                guildId: { in: guildFilter },
                 ...(attribute && { user: { primaryAttribute: attribute } }),
             },
         })
@@ -83,6 +101,9 @@ async function handleStatus(interaction: ChatInputCommandInteraction): Promise<v
 
     const filterDesc = buildFilterDescription(guildName, attribute);
     if (filterDesc) embed.setDescription(filterDesc);
+    if (allowedGuildIds.length > 0 && !targetGuildId) {
+        embed.setFooter({ text: `対象: ${allowedGuildIds.length}サーバー` });
+    }
 
     await interaction.reply({ embeds: [embed] });
 }
@@ -90,22 +111,33 @@ async function handleStatus(interaction: ChatInputCommandInteraction): Promise<v
 /**
  * Handle /attendance present command
  */
-async function handlePresent(interaction: ChatInputCommandInteraction): Promise<void> {
+async function handlePresent(
+    interaction: ChatInputCommandInteraction,
+    allowedGuildIds: string[]
+): Promise<void> {
     const conference = interaction.options.getString("conference");
     const attribute = interaction.options.getString("attribute");
     const today = getTodayJST();
 
-    const { guildId: targetGuildId, guildName, error } = await resolveConference(conference);
+    const { guildId: targetGuildId, guildName, error } = await resolveConference(conference, allowedGuildIds);
     if (error) {
         await interaction.reply({ content: `❌ ${error}`, ephemeral: true });
         return;
+    }
+
+    // Build guild filter
+    let guildFilter: string[] | null = null;
+    if (targetGuildId) {
+        guildFilter = [targetGuildId];
+    } else if (allowedGuildIds.length > 0) {
+        guildFilter = allowedGuildIds;
     }
 
     const logs = await prisma.attendanceLog.findMany({
         where: {
             checkInDate: today,
             ...(attribute && { attribute }),
-            ...(targetGuildId && { primaryGuildId: targetGuildId }),
+            ...(guildFilter && { primaryGuildId: { in: guildFilter } }),
         },
         include: {
             user: { include: { guildMemberships: true } },
@@ -146,15 +178,26 @@ async function handlePresent(interaction: ChatInputCommandInteraction): Promise<
 /**
  * Handle /attendance absent command
  */
-async function handleAbsent(interaction: ChatInputCommandInteraction): Promise<void> {
+async function handleAbsent(
+    interaction: ChatInputCommandInteraction,
+    allowedGuildIds: string[]
+): Promise<void> {
     const conference = interaction.options.getString("conference");
     const attribute = interaction.options.getString("attribute");
     const today = getTodayJST();
 
-    const { guildId: targetGuildId, guildName, error } = await resolveConference(conference);
+    const { guildId: targetGuildId, guildName, error } = await resolveConference(conference, allowedGuildIds);
     if (error) {
         await interaction.reply({ content: `❌ ${error}`, ephemeral: true });
         return;
+    }
+
+    // Build guild filter
+    let guildFilter: string[] | null = null;
+    if (targetGuildId) {
+        guildFilter = [targetGuildId];
+    } else if (allowedGuildIds.length > 0) {
+        guildFilter = allowedGuildIds;
     }
 
     const presentUserIds = (
@@ -168,8 +211,8 @@ async function handleAbsent(interaction: ChatInputCommandInteraction): Promise<v
         where: {
             discordUserId: { notIn: presentUserIds },
             ...(attribute && { primaryAttribute: attribute }),
-            ...(targetGuildId && {
-                guildMemberships: { some: { guildId: targetGuildId } },
+            ...(guildFilter && {
+                guildMemberships: { some: { guildId: { in: guildFilter } } },
             }),
         },
         include: { guildMemberships: true },
@@ -207,9 +250,10 @@ async function handleAbsent(interaction: ChatInputCommandInteraction): Promise<v
  * Handle /attendance command
  */
 export async function handleAttendance(interaction: ChatInputCommandInteraction): Promise<void> {
-    // Check staff permission
-    const hasPermission = await hasStaffPermission(interaction.user.id);
-    if (!hasPermission) {
+    // Check organizer permission (organizer, staff, or admin)
+    const organizerGuildIds = await getOrganizerGuildIds(interaction.user.id);
+
+    if (organizerGuildIds === null) {
         await interaction.reply({
             content: "❌ このコマンドを実行する権限がありません。",
             ephemeral: true,
@@ -219,15 +263,18 @@ export async function handleAttendance(interaction: ChatInputCommandInteraction)
 
     const subcommand = interaction.options.getSubcommand();
 
+    // For organizers (not staff/admin), restrict to their guilds
+    // organizerGuildIds is empty for staff/admin (meaning all guilds)
+    // organizerGuildIds is an array for organizers (meaning only those guilds)
     switch (subcommand) {
         case "status":
-            await handleStatus(interaction);
+            await handleStatus(interaction, organizerGuildIds);
             break;
         case "present":
-            await handlePresent(interaction);
+            await handlePresent(interaction, organizerGuildIds);
             break;
         case "absent":
-            await handleAbsent(interaction);
+            await handleAbsent(interaction, organizerGuildIds);
             break;
     }
 }
