@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { createHash } from "crypto";
 import prisma from "./prisma";
 
 interface SessionPayload {
@@ -57,7 +58,6 @@ export function verifyQrToken(token: string): { valid: boolean; userId?: string 
         console.log("[DEBUG] verifyQrToken - userId:", userId);
 
         // Verify signature
-        const { createHash } = require("crypto");
         const expectedSignature = createHash("sha256")
             .update(`${payload}:${secret}`)
             .digest("hex")
