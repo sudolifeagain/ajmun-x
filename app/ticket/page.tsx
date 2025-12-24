@@ -10,7 +10,7 @@ export default async function TicketPage() {
         redirect("/");
     }
 
-    // Fetch user with guild memberships
+    // Fetch user with guild memberships (target guilds or operation server only)
     const userWithGuilds = await prisma.user.findUnique({
         where: { discordUserId: user.discordUserId },
         include: {
@@ -20,7 +20,10 @@ export default async function TicketPage() {
                 },
                 where: {
                     guild: {
-                        isTargetGuild: true,
+                        OR: [
+                            { isTargetGuild: true },
+                            { isOperationServer: true },
+                        ],
                     },
                 },
             },
