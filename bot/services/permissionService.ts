@@ -24,16 +24,26 @@ export async function getPermissionConfig(): Promise<PermissionConfig> {
 
 /**
  * Get user's permission level based on all guild memberships
+ * Supports both role IDs and user IDs in the same config
  * Priority: admin > staff > none
  */
 export async function getUserPermissionLevel(userId: string): Promise<PermissionLevel> {
     const config = await getPermissionConfig();
 
-    // No roles configured means no permissions for anyone
+    // No IDs configured means no permissions for anyone
     if (config.staffRoleIds.length === 0 && config.adminRoleIds.length === 0) {
         return "none";
     }
 
+    // First, check if user ID is directly in the admin/staff lists
+    if (config.adminRoleIds.includes(userId)) {
+        return "admin";
+    }
+    if (config.staffRoleIds.includes(userId)) {
+        return "staff";
+    }
+
+    // Then check role-based permissions
     const memberships = await prisma.userGuildMembership.findMany({
         where: { discordUserId: userId },
     });

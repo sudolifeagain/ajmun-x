@@ -158,14 +158,32 @@ export async function handleSystem(
     } else if (subcommand === "show") {
         const configs = await prisma.systemConfig.findMany();
 
+        // Format IDs as mentions for visual distinction
+        // Role IDs use <@&ID> format, User IDs use <@ID> format
+        // Since we can't distinguish them easily, we show both formats
+        const formatIds = (value: string, key: string): string => {
+            const ids = value.split(",").map((id) => id.trim()).filter(Boolean);
+            if (ids.length === 0) return "`(empty)`";
+
+            // For role/user ID configs, show as mentions
+            if (key.includes("role_ids") || key.includes("user_ids")) {
+                return ids.map((id) => `<@&${id}> / <@${id}>`).join("\n");
+            }
+            return `\`${value}\``;
+        };
+
         const configList = configs
-            .map((c) => `**${c.key}**: \`${c.value}\``)
-            .join("\n");
+            .map((c) => {
+                const formattedValue = formatIds(c.value, c.key);
+                return `**${c.key}**:\n${formattedValue}`;
+            })
+            .join("\n\n");
 
         const embed = new EmbedBuilder()
             .setTitle("⚙️ システム設定")
             .setColor(0x3b82f6)
             .setDescription(configList || "設定がありません")
+            .setFooter({ text: "ロール: @ロール名 / ユーザー: @ユーザー名 で表示されます" })
             .setTimestamp();
 
         await interaction.reply({ embeds: [embed], flags: MessageFlags.SuppressNotifications });
