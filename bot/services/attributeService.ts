@@ -4,22 +4,25 @@ interface AttributeConfig {
     staffRoleIds: string[];
     organizerRoleIds: string[];
     operationGuildId: string | null;
+    targetGuildIds: string[];
 }
 
 /**
  * Fetch attribute configuration from database
  */
 export async function getAttributeConfig(): Promise<AttributeConfig> {
-    const [staffConfig, organizerConfig, operationGuildConfig] = await Promise.all([
+    const [staffConfig, organizerConfig, operationGuildConfig, targetGuildConfig] = await Promise.all([
         prisma.systemConfig.findUnique({ where: { key: "staff_role_ids" } }),
         prisma.systemConfig.findUnique({ where: { key: "organizer_role_ids" } }),
         prisma.systemConfig.findUnique({ where: { key: "operation_guild_id" } }),
+        prisma.systemConfig.findUnique({ where: { key: "target_guild_ids" } }),
     ]);
 
     return {
-        staffRoleIds: staffConfig?.value.split(",").map((id) => id.trim()) || [],
-        organizerRoleIds: organizerConfig?.value.split(",").map((id) => id.trim()) || [],
+        staffRoleIds: staffConfig?.value.split(",").map((id) => id.trim()).filter(Boolean) || [],
+        organizerRoleIds: organizerConfig?.value.split(",").map((id) => id.trim()).filter(Boolean) || [],
         operationGuildId: operationGuildConfig?.value || null,
+        targetGuildIds: targetGuildConfig?.value.split(",").map((id) => id.trim()).filter(Boolean) || [],
     };
 }
 
@@ -45,3 +48,18 @@ export function determineAttribute(
 export function isOperationServer(guildId: string, config: AttributeConfig): boolean {
     return config.operationGuildId === guildId;
 }
+
+/**
+ * Check if a guild is a target guild for attendance tracking
+ * If targetGuildIds is not configured, all guilds are considered targets
+ * If configured, only guilds in the list are targets
+ */
+export function isTargetGuild(guildId: string, config: AttributeConfig): boolean {
+    // If no target_guild_ids configured, all guilds are targets (backward compatible)
+    if (config.targetGuildIds.length === 0) {
+        return true;
+    }
+    // Otherwise, check if this guild is in the list
+    return config.targetGuildIds.includes(guildId);
+}
+

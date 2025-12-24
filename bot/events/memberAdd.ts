@@ -1,6 +1,6 @@
 import { GuildMember } from "discord.js";
 import { prisma, generateDefaultColor } from "../utils";
-import { getAttributeConfig, determineAttribute, isOperationServer } from "../services";
+import { getAttributeConfig, determineAttribute, isOperationServer, isTargetGuild } from "../services";
 
 /**
  * Handle guildMemberAdd event
@@ -10,6 +10,7 @@ export async function handleMemberAdd(member: GuildMember): Promise<void> {
 
     const config = await getAttributeConfig();
     const isOpServer = isOperationServer(member.guild.id, config);
+    const isTarget = isTargetGuild(member.guild.id, config);
 
     // Upsert Guild
     await prisma.guild.upsert({
@@ -18,13 +19,14 @@ export async function handleMemberAdd(member: GuildMember): Promise<void> {
             guildName: member.guild.name,
             guildIconUrl: member.guild.iconURL(),
             isOperationServer: isOpServer,
+            isTargetGuild: isTarget,
         },
         create: {
             guildId: member.guild.id,
             guildName: member.guild.name,
             guildIconUrl: member.guild.iconURL(),
             defaultColor: generateDefaultColor(member.guild.id),
-            isTargetGuild: true,
+            isTargetGuild: isTarget,
             isOperationServer: isOpServer,
         },
     });

@@ -1,6 +1,6 @@
 import { Guild } from "discord.js";
 import { prisma, generateDefaultColor } from "../utils";
-import { getAttributeConfig, determineAttribute, isOperationServer } from "./attributeService";
+import { getAttributeConfig, determineAttribute, isOperationServer, isTargetGuild } from "./attributeService";
 
 /**
  * Sync a single guild's members to the database
@@ -12,6 +12,7 @@ export async function syncGuildMembers(guild: Guild): Promise<number> {
 
     const config = await getAttributeConfig();
     const isOpServer = isOperationServer(guild.id, config);
+    const isTarget = isTargetGuild(guild.id, config);
 
     // Upsert guild
     await prisma.guild.upsert({
@@ -20,13 +21,14 @@ export async function syncGuildMembers(guild: Guild): Promise<number> {
             guildName: guild.name,
             guildIconUrl: guildIconUrl,
             isOperationServer: isOpServer,
+            isTargetGuild: isTarget,
         },
         create: {
             guildId: guild.id,
             guildName: guild.name,
             guildIconUrl: guildIconUrl,
             defaultColor: generateDefaultColor(guild.id),
-            isTargetGuild: true,
+            isTargetGuild: isTarget,
             isOperationServer: isOpServer,
         },
     });
