@@ -172,13 +172,9 @@ export async function GET(request: NextRequest) {
             details: `属性: ${primaryAttribute}, サーバー: ${membership.guild.guildName}`,
         });
 
-        // Create session cookie
-        const sessionToken = Buffer.from(
-            JSON.stringify({
-                userId: discordUser.id,
-                exp: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
-            })
-        ).toString("base64url");
+        // Create session cookie (JWT signed)
+        const { createSessionToken } = await import("@/app/lib/session");
+        const sessionToken = await createSessionToken(discordUser.id);
 
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.url.split('/api')[0];
         const response = NextResponse.redirect(new URL("/ticket", baseUrl));
