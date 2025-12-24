@@ -12,7 +12,7 @@ import { SlashCommandBuilder } from "discord.js";
  */
 const attributeChoices = [
     { name: "参加者", value: "participant" },
-    { name: "会議運営者", value: "organizer" },
+    { name: "会議フロント", value: "organizer" },
     { name: "スタッフ", value: "staff" },
 ] as const;
 
@@ -21,7 +21,7 @@ const attributeChoices = [
  */
 const configKeyChoices = [
     { name: "スタッフロールID", value: "staff_role_ids" },
-    { name: "会議運営者ロールID", value: "organizer_role_ids" },
+    { name: "会議フロントロールID", value: "organizer_role_ids" },
     { name: "管理者ロールID", value: "admin_role_ids" },
     { name: "運営サーバーID", value: "operation_guild_id" },
     { name: "会議サーバーID", value: "target_guild_ids" },

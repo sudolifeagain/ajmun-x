@@ -20,5 +20,5 @@ export function generateDefaultColor(guildId: string): string {
  */
 export function getAttributeLabel(attr: string): string {
     return attr === "staff" ? "スタッフ" :
-        attr === "organizer" ? "会議運営者" : "参加者";
+        attr === "organizer" ? "会議フロント" : "参加者";
 }

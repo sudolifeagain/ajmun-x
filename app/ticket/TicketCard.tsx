@@ -94,7 +94,7 @@ export default function TicketCard({ user, guilds }: TicketCardProps) {
 
             // Attribute badge
             const attrText = user.primaryAttribute === "staff" ? "スタッフ"
-                : user.primaryAttribute === "organizer" ? "会議運営者" : "参加者";
+                : user.primaryAttribute === "organizer" ? "会議フロント" : "参加者";
             ctx.fillStyle = '#a78bfa';
             ctx.font = '13px sans-serif';
             ctx.fillText(attrText, canvas.width / 2, textY + 55);
@@ -166,7 +166,7 @@ export default function TicketCard({ user, guilds }: TicketCardProps) {
                                             </p>
                                             <p className="text-xs text-slate-400">
                                                 {user.primaryAttribute === "staff" && "スタッフ"}
-                                                {user.primaryAttribute === "organizer" && "会議運営者"}
+                                                {user.primaryAttribute === "organizer" && "会議フロント"}
                                                 {user.primaryAttribute === "participant" && "参加者"}
                                             </p>
                                         </div>
@@ -194,7 +194,7 @@ export default function TicketCard({ user, guilds }: TicketCardProps) {
                             </h2>
                             <p className="text-sm text-slate-300">
                                 {user.primaryAttribute === "staff" && "スタッフ"}
-                                {user.primaryAttribute === "organizer" && "会議運営者"}
+                                {user.primaryAttribute === "organizer" && "会議フロント"}
                                 {user.primaryAttribute === "participant" && "参加者"}
                             </p>
                         </div>

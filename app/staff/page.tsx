@@ -211,7 +211,7 @@ export default function ScannerPage() {
                                     }}
                                 >
                                     {result.user.attribute === "staff" && "スタッフ"}
-                                    {result.user.attribute === "organizer" && "会議運営者"}
+                                    {result.user.attribute === "organizer" && "会議フロント"}
                                     {result.user.attribute === "participant" && "参加者"}
                                 </div>
 

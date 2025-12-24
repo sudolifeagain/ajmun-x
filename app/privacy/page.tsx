@@ -27,7 +27,7 @@ export default function PrivacyPage() {
                         <ul className="list-inside list-disc space-y-1">
                             <li>QR トークン（署名付き認証用トークン）</li>
                             <li>出席ログ（入場日時、担当スタッフ情報）</li>
-                            <li>参加者属性（スタッフ/会議運営者/参加者）</li>
+                            <li>参加者属性（スタッフ/会議フロント/参加者）</li>
                         </ul>
                     </section>
 
@@ -47,7 +47,7 @@ export default function PrivacyPage() {
                         <p>収集した情報は、以下の範囲でのみ共有されます。</p>
                         <ul className="mt-2 list-inside list-disc space-y-1">
                             <li><strong>第37回模擬国連会議全日本大会事務局</strong>: 運営管理目的</li>
-                            <li><strong>会議フロント（会議運営者）</strong>: 各会議の出席管理目的</li>
+                            <li><strong>会議フロント</strong>: 各会議の出席管理目的</li>
                         </ul>
                         <p className="mt-3">上記以外の第三者への情報提供は一切行いません。</p>
                     </section>
