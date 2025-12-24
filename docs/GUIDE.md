@@ -133,6 +133,7 @@ sqlite3 prisma/dev.db "INSERT INTO SystemConfig (key, value, description) VALUES
 |---------|------|------|
 | `admin_role_ids` | 管理者ロール/ユーザーID | ✅ |
 | `staff_role_ids` | スタッフロール/ユーザーID | 任意 |
+| `organizer_role_ids` | 会議フロントロール/ユーザーID | 任意 |
 | `operation_guild_id` | 運営サーバーID（属性判定用） | 任意 |
 | `target_guild_ids` | 対象サーバーID（ログイン許可） | 任意 |
 
