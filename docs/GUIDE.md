@@ -103,17 +103,37 @@ npm run bot
 
 ### 2.4 権限システムの初期設定
 
-初回は管理者ロールをDBに直接登録：
+権限未設定時は誰でも `/system sync` を実行できます（初期セットアップ用）。
 
+#### 手順1: メンバー同期
+
+Discordで以下を実行（権限不要）：
+```
+/system sync
+```
+
+#### 手順2: 管理者ロール登録
+
+DBに直接登録：
 ```bash
 sqlite3 prisma/dev.db "INSERT INTO SystemConfig (key, value, description) VALUES ('admin_role_ids', 'ロールID', '管理者ロール');"
 ```
 
-以降はDiscordから設定可能：
+#### 手順3: 追加設定（Discord経由）
+
+管理者として以下を設定：
 ```
-/system config operation_guild_id <運営サーバーID>
 /system config staff_role_ids <スタッフロールID>
+/system config operation_guild_id <運営サーバーID>
 ```
+
+#### 設定一覧
+
+| 設定キー | 用途 | 必須 |
+|---------|------|------|
+| `admin_role_ids` | 管理者ロール | ✅ |
+| `staff_role_ids` | スタッフロール | 任意 |
+| `operation_guild_id` | 運営サーバーID（属性判定用） | 任意 |
 
 ---
 
@@ -132,7 +152,7 @@ sqlite3 prisma/dev.db "INSERT INTO SystemConfig (key, value, description) VALUES
 |---------|-----|
 | `/attendance status` | staff以上 |
 | `/attendance present/absent` | staff以上 |
-| `/system sync` | staff以上 |
+| `/system sync` | 権限未設定時：誰でも / 設定後：staff以上 |
 | `/system show/config` | admin |
 
 ---
@@ -295,7 +315,7 @@ sqlite3 prisma/prod.db "SELECT * FROM AttendanceLog WHERE discordUserId = 'ユ�
 rm -rf node_modules/.prisma .next
 npx prisma generate
 npm run build
-pm2 restart all
+    pm2 restart all
 ```
 
 ### データベースリセット
