@@ -11,7 +11,7 @@
 const CONFIG = {
     API_URL: "https://ajmun37.re4lity.com/api/attendance-export",
     API_KEY: "ここにAPIキーを入力",  // .envのEXPORT_API_KEYと同じ値
-    MASTER_SHEET_NAME: "Discord ID マスタ",  // 既存のマスタシート名（任意）
+    SHEET_NAME: "出席状況",  // 同期先のシート名
 };
 
 // ==========================
@@ -19,7 +19,7 @@ const CONFIG = {
 // ==========================
 
 /**
- * 全会議の出席状況を同期
+ * 全会議の出席状況を同期（1つのシートに統合）
  * メニューから実行、またはトリガーで定期実行
  */
 function syncAllAttendance() {
@@ -30,13 +30,59 @@ function syncAllAttendance() {
     const data = fetchAttendanceData(today);
     if (!data) return;
 
-    // 会議ごとにシートを作成/更新
-    data.guilds.forEach(guild => {
-        const guildMembers = data.members.filter(m => m.guildId === guild.guildId);
-        updateGuildSheet(ss, guild.guildName, guildMembers, today);
+    // シート取得または作成
+    let sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
+    if (!sheet) {
+        sheet = ss.insertSheet(CONFIG.SHEET_NAME);
+    }
+
+    // ヘッダー
+    const headers = [
+        "Discord ID",
+        "グローバル名",
+        "ニックネーム",
+        "会議名",
+        "属性",
+        "出席状況",
+        "スキャン日時"
+    ];
+
+    // データ整形（出席済み → 未出席の順、会議名でソート）
+    const sortedMembers = data.members.sort((a, b) => {
+        // まず会議名でソート
+        if (a.guildName < b.guildName) return -1;
+        if (a.guildName > b.guildName) return 1;
+        // 次に出席状況（出席済みが先）
+        if (a.attended && !b.attended) return -1;
+        if (!a.attended && b.attended) return 1;
+        return 0;
     });
 
-    SpreadsheetApp.getUi().alert(`同期完了: ${data.summary.attended}/${data.summary.total}人 出席済み`);
+    const rows = sortedMembers.map(m => [
+        m.discordUserId,
+        m.globalName,
+        m.nickname,
+        m.guildName,
+        getAttributeLabel(m.attribute),
+        m.attended ? "✅ 済" : "❌ 未",
+        m.checkInTimestamp ? formatTimestamp(m.checkInTimestamp) : "",
+    ]);
+
+    // シートをクリアして書き込み
+    sheet.clear();
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold");
+
+    if (rows.length > 0) {
+        sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+    }
+
+    // 最終更新日時をシートに表示
+    sheet.getRange("I1").setValue(`最終更新: ${today} ${Utilities.formatDate(new Date(), "Asia/Tokyo", "HH:mm")}`);
+
+    // サマリー表示
+    const attended = data.members.filter(m => m.attended).length;
+    const total = data.members.length;
+    SpreadsheetApp.getUi().alert(`同期完了: ${attended}/${total}人 出席済み`);
 }
 
 /**
@@ -52,45 +98,6 @@ function fetchAttendanceData(date) {
         SpreadsheetApp.getUi().alert("APIエラー: " + e.message);
         return null;
     }
-}
-
-/**
- * 会議シートを更新
- */
-function updateGuildSheet(ss, guildName, members, date) {
-    // シート取得または作成
-    let sheet = ss.getSheetByName(guildName);
-    if (!sheet) {
-        sheet = ss.insertSheet(guildName);
-    }
-
-    // ヘッダー
-    const headers = ["Discord ID", "グローバル名", "ニックネーム", "属性", "出席状況", "スキャン日時"];
-
-    // データ整形（出席済み → 未出席の順）
-    const attended = members.filter(m => m.attended);
-    const absent = members.filter(m => !m.attended);
-    const sorted = [...attended, ...absent];
-
-    const rows = sorted.map(m => [
-        m.discordUserId,
-        m.globalName,
-        m.nickname,
-        getAttributeLabel(m.attribute),
-        m.attended ? "✅ 済" : "❌ 未",
-        m.checkInTimestamp ? formatTimestamp(m.checkInTimestamp) : "",
-    ]);
-
-    // シートをクリアして書き込み
-    sheet.clear();
-    sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold");
-
-    if (rows.length > 0) {
-        sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
-    }
-
-    // 日付をシート説明に
-    sheet.getRange("H1").setValue(`最終更新: ${date}`);
 }
 
 /**
