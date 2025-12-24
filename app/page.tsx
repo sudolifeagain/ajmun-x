@@ -87,6 +87,10 @@ export default async function Home({ searchParams }: Props) {
           <a href="/privacy" className="text-slate-500 hover:text-slate-400 transition-colors">
             プライバシーポリシー
           </a>
+          <br />
+          <Link href="/staff" className="text-slate-600 hover:text-slate-500 transition-colors">
+            🔒 スタッフ用スキャナー
+          </Link>
         </p>
       </div>
     </div>

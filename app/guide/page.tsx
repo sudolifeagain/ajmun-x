@@ -49,20 +49,20 @@ export default function GuidePage() {
                             </div>
                             <div className="flex-1">
                                 <h2 className="text-xl font-bold text-white mb-2">
-                                    QRコードを保存
+                                    QRコードを確認
                                 </h2>
                                 <p className="text-slate-300 text-sm leading-relaxed">
                                     ログインすると、あなた専用のQRコードが表示されます。
                                     <br /><br />
-                                    <strong className="text-white">⬇️ 保存方法：</strong>
+                                    <strong className="text-white">💾 保存機能もあります：</strong>
                                     <br />
-                                    ・「画像を保存」ボタンを押すと、カメラロールに保存できます
+                                    ・「画像を保存」ボタンで端末に保存できます
                                     <br />
-                                    ・スクリーンショットでもOKです
+                                    ・普通にスクリーンショットを撮ってもOKです
                                     <br /><br />
-                                    <strong className="text-red-400">⚠️ 重要：</strong>
-                                    <br />
-                                    会場はWi-Fiがつながりにくいことがあります。<strong className="text-white">必ず事前に保存</strong>しておいてください！
+                                    <span className="text-slate-400">
+                                        ※ 会場のWi-Fi状況が心配な場合は、事前に保存しておくと安心です
+                                    </span>
                                 </p>
                             </div>
                         </div>
