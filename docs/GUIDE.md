@@ -101,43 +101,62 @@ npm run dev
 npm run bot
 ```
 
-### 2.4 権限システムの初期設定
+### 2.4 初期設定の流れ
 
-権限未設定時は誰でも `/system sync` を実行できます（初期セットアップ用）。
+#### 概要
 
-#### 手順1: メンバー同期
+1. **運営サーバー**にBotを招待
+2. **会議サーバー**にBotを招待（複数）
+3. システム設定を登録
 
-Discordで以下を実行（権限不要）：
+#### STEP 1: Botを運営サーバーに招待
+
+運営サーバー（スタッフ全員が所属するサーバー）にBotを招待。
+
+#### STEP 2: Botを会議サーバーに招待
+
+各会議サーバー（参加者が所属するサーバー）にBotを招待。
+
+#### STEP 3: メンバー同期
+
+Discordで実行（初回は権限不要）：
 ```
 /system sync
 ```
 
-#### 手順2: 管理者ロール登録
+#### STEP 4: 管理者設定
 
-DBに直接登録：
+SQLiteに直接登録（初回のみ）：
 ```bash
-sqlite3 prisma/dev.db "INSERT INTO SystemConfig (key, value, description) VALUES ('admin_role_ids', 'ロールID', '管理者ロール');"
+sqlite3 prisma/dev.db "INSERT INTO SystemConfig (key, value, description) VALUES ('admin_role_ids', '管理者ロールID', '管理者ロール');"
 ```
 
-#### 手順3: 追加設定（Discord経由）
+#### STEP 5: サーバー設定
 
-管理者として以下を設定：
+Discordで管理者として実行：
+```
+/system config operation_guild_id <運営サーバーID>
+/system config target_guild_ids <会議A>,<会議B>,<会議C>,...
+```
+
+#### STEP 6: 権限ロール設定
+
 ```
 /system config staff_role_ids <スタッフロールID>
-/system config operation_guild_id <運営サーバーID>
+/system config organizer_role_ids <会議フロントロールID>
 ```
 
-#### 設定一覧
+#### 設定キー一覧
 
-| 設定キー | 用途 | 必須 |
-|---------|------|------|
-| `admin_role_ids` | 管理者ロール/ユーザーID | ✅ |
-| `staff_role_ids` | スタッフロール/ユーザーID | 任意 |
-| `organizer_role_ids` | 会議フロントロール/ユーザーID | 任意 |
-| `operation_guild_id` | 運営サーバーID（属性判定用） | 任意 |
-| `target_guild_ids` | 対象サーバーID（ログイン許可） | 任意 |
+| キー | 説明 | 例 |
+|-----|------|-----|
+| `operation_guild_id` | 運営サーバーのID。属性判定に使用 | `123456789` |
+| `target_guild_ids` | 会議サーバーのID（カンマ区切り）。出席管理対象 | `111,222,333` |
+| `admin_role_ids` | 管理者ロール/ユーザーID | ロールIDまたはユーザーID |
+| `staff_role_ids` | スタッフロール/ユーザーID | 同上 |
+| `organizer_role_ids` | 会議フロントロール/ユーザーID | 同上 |
 
-> 💡 `target_guild_ids` が**未設定**の場合は全サーバーが対象、**設定済み**の場合は指定サーバーのみログイン可能
+> 💡 `target_guild_ids` が**未設定**の場合は全サーバーが対象。**設定済み**の場合は指定サーバーのみが対象。
 
 ---
 
