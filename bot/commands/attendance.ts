@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, AutocompleteInteraction, EmbedBuilder } from "discord.js";
+import { ChatInputCommandInteraction, AutocompleteInteraction, EmbedBuilder, MessageFlags } from "discord.js";
 import { prisma, getTodayJST, getAttributeLabel } from "../utils";
 import { getOrganizerGuildIds } from "../services";
 
@@ -105,7 +105,7 @@ async function handleStatus(
         embed.setFooter({ text: `対象: ${allowedGuildIds.length}サーバー` });
     }
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply({ embeds: [embed], flags: MessageFlags.SuppressNotifications });
 }
 
 /**
@@ -172,7 +172,7 @@ async function handlePresent(
     if (filterDesc) embed.setFooter({ text: remaining > 0 ? `${filterDesc} | 他 ${remaining}人` : filterDesc });
     else if (remaining > 0) embed.setFooter({ text: `他 ${remaining}人` });
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply({ embeds: [embed], flags: MessageFlags.SuppressNotifications });
 }
 
 /**
@@ -243,7 +243,7 @@ async function handleAbsent(
     if (filterDesc) embed.setFooter({ text: remaining > 0 ? `${filterDesc} | 他 ${remaining}人` : filterDesc });
     else if (remaining > 0) embed.setFooter({ text: `他 ${remaining}人` });
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply({ embeds: [embed], flags: MessageFlags.SuppressNotifications });
 }
 
 /**
