@@ -89,8 +89,8 @@ export const RATE_LIMITS = {
     // For GAS sync (1 minute intervals) - allow 5 per minute for safety margin
     EXPORT_API: { maxRequests: 5, windowSeconds: 60 } as RateLimitConfig,
 
-    // For scan API - allow 30 per minute (frequent scanning at reception)
-    SCAN_API: { maxRequests: 30, windowSeconds: 60 } as RateLimitConfig,
+    // For scan API - allow 100 per minute (frequent scanning at reception)
+    SCAN_API: { maxRequests: 100, windowSeconds: 60 } as RateLimitConfig,
 
     // For auth API - allow 10 per minute per IP
     AUTH_API: { maxRequests: 10, windowSeconds: 60 } as RateLimitConfig,

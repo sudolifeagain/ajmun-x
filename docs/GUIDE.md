@@ -80,7 +80,8 @@ NEXT_PUBLIC_BASE_URL=http://localhost:3000
 | `DISCORD_REDIRECT_URI` | OAuthコールバックURL |
 | `DISCORD_BOT_TOKEN` | Bot認証トークン |
 | `DATABASE_URL` | SQLiteデータベースパス |
-| `QR_SECRET` | QRトークン署名用キー |
+| `QR_SECRET` | QRトークン・セッションJWT署名用キー |
+| `EXPORT_API_KEY` | Googleスプレッドシート同期API認証キー |
 | `DISCORD_LOG_WEBHOOK_URL` | ログ送信用Webhook URL（任意） |
 | `DISCORD_LOG_MENTION_USER_ID` | エラー時メンションするユーザーID（任意） |
 
@@ -519,7 +520,44 @@ curl -I -H "Host: your-domain.com" http://localhost
 
 ## 7. セキュリティ強化
 
-### 7.1 基本設定
+### 7.1 アプリケーションセキュリティ
+
+#### セッション認証（JWT）
+- セッショントークンは **JWT（HS256署名）** で保護
+- 署名キーは `QR_SECRET` 環境変数を使用
+- 7日間の有効期限付き
+- 改ざん検知により不正アクセスを防止
+
+#### QRコード署名
+- QRトークンは **SHA256 HMAC** で署名
+- 署名キーは `QR_SECRET` 環境変数を使用
+- 偽造されたQRコードはスキャン時に拒否
+
+#### APIレート制限
+
+| API | 制限 | キー |
+|-----|------|------|
+| `/api/scan` | 100リクエスト/分 | IPアドレス |
+| `/api/attendance-export` | 5リクエスト/分 | APIキー |
+
+#### API認証（Authorizationヘッダー）
+
+`/api/attendance-export` は `Authorization: Bearer <API_KEY>` ヘッダーで認証:
+
+```bash
+curl -H "Authorization: Bearer YOUR_API_KEY" \
+  "https://your-domain.com/api/attendance-export?dates=2025-12-27"
+```
+
+#### ログイン試行追跡
+
+以下のエラーがDiscordにログ送信されます:
+- CSRF検証エラー（state不一致）
+- 認可コード欠落
+- サーバー設定エラー
+- 対象サーバー未参加によるアクセス拒否
+
+### 7.2 インフラセキュリティ
 
 ```bash
 chmod 600 ~/ajmun-x/.env
@@ -529,7 +567,7 @@ sudo apt install -y iptables-persistent
 sudo netfilter-persistent save
 ```
 
-### 7.2 Nginx セキュリティヘッダー
+### 7.3 Nginx セキュリティヘッダー
 
 ```nginx
 add_header X-Frame-Options "SAMEORIGIN" always;
@@ -537,7 +575,7 @@ add_header X-Content-Type-Options "nosniff" always;
 add_header X-XSS-Protection "1; mode=block" always;
 ```
 
-### 7.3 SSH 強化 (`/etc/ssh/sshd_config`)
+### 7.4 SSH 強化 (`/etc/ssh/sshd_config`)
 
 ```
 PasswordAuthentication no
@@ -545,14 +583,14 @@ PermitRootLogin no
 MaxAuthTries 3
 ```
 
-### 7.4 fail2ban
+### 7.5 fail2ban
 
 ```bash
 sudo apt install -y fail2ban
 sudo systemctl enable fail2ban && sudo systemctl start fail2ban
 ```
 
-### 7.5 自動セキュリティ更新
+### 7.6 自動セキュリティ更新
 
 ```bash
 sudo apt install -y unattended-upgrades
