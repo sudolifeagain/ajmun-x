@@ -72,7 +72,7 @@ Botをサーバーに招待後、Discordで以下のコマンドを実行：
 | **bot管理者** | `admin_role_ids` | `/system`、`/setup`（設定後）、`/attendance` 全機能 |
 | **事務局員** | `staff_role_ids` | `/attendance` 全機能 |
 | **会議フロント** | `organizer_role_ids` | `/attendance` 自会議のみ |
-| **参加者** | - | Webログイン、QRコード発行のみ |
+| **参加者** | - | QRコード受取（DM/Web） |
 
 > 💡 bot管理者ロールは事務局員権限も含みます（上位互換）
 
@@ -204,9 +204,14 @@ Discordで管理者として実行：
 
 ## 3. 動作確認
 
-### 3.1 ユーザーフロー
+### 3.1 ユーザーフロー (Web)
 1. http://localhost:3000 → 「Discordでログイン」
 2. QRコード画面が表示されれば成功
+
+### 3.2 ユーザーフロー (DM配布)
+1. Bot管理者として `/system send-qr target:specific_users specific_user_ids:<自分のID>` を実行
+2. DMでQRコードが届けば成功
+
 
 ### 3.2 スキャナーフロー
 1. http://localhost:3000/staff → カメラ許可 → QRスキャン

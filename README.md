@@ -5,7 +5,7 @@ Offline event entry/exit management system with Discord OAuth authentication and
 ## Features
 
 - **Discord OAuth Authentication**: Users log in with their Discord account
-- **QR Code Issuance**: Generate signed QR codes after login
+- **QR Code Issuance**: Distributed via Bot DM or generated after Web login
 - **Reception Scanner**: Staff-only QR code scanning page
 - **Attendance Management**: Check and manage attendance via Discord Bot
 - **Multi-Server Support**: Supports 6 conference servers + 1 operations server
