@@ -206,14 +206,29 @@ organizer（会議フロント）以上のロールで実行可能
 
 ---
 
-# Discordコマンド（スタッフ/管理者向け）
+# Discordコマンド（管理者向け）
 
-| コマンド | 必要権限 | 説明 |
-|---------|---------|------|
-| `/system sync` | staff以上 | メンバー情報を同期 |
-| `/system show` | admin | 現在の設定を表示 |
-| `/system config` | admin | 設定を変更 |
-| `/system delete` | admin | 設定を削除 |
+| コマンド | 説明 |
+|---------|------|
+| `/system sync` | メンバー情報を同期 |
+| `/system show` | 現在の設定を表示 |
+| `/system config <key> <value>` | 設定を上書き |
+| `/system delete <key>` | 設定を削除 |
+
+---
+
+# 初期設定コマンド（/setup）
+
+admin未設定時は誰でも実行可、設定後はadminのみ
+
+| コマンド | 説明 |
+|---------|------|
+| `/setup target-guild <enable> [guild_id]` | 対象ギルド設定 |
+| `/setup operation-server <enable> [guild_id]` | 運営サーバー設定 |
+| `/setup admin-roles <roles>` | 管理者ロール設定（以降ロック） |
+| `/setup staff-roles <roles>` | スタッフロール設定 |
+| `/setup organizer-roles <roles>` | 会議フロントロール追加 |
+| `/setup status` | 現在の設定を表示 |
 
 ---
 

@@ -11,18 +11,18 @@ import { SlashCommandBuilder } from "discord.js";
  * Attribute choices used in attendance commands
  */
 const attributeChoices = [
-    { name: "参加者", value: "participant" },
+    { name: "そのほか", value: "participant" },
     { name: "会議フロント", value: "organizer" },
-    { name: "スタッフ", value: "staff" },
+    { name: "事務局員", value: "staff" },
 ] as const;
 
 /**
  * Config key choices used in system commands
  */
 const configKeyChoices = [
-    { name: "スタッフロールID", value: "staff_role_ids" },
+    { name: "事務局員ロールID", value: "staff_role_ids" },
     { name: "会議フロントロールID", value: "organizer_role_ids" },
-    { name: "管理者ロールID", value: "admin_role_ids" },
+    { name: "bot管理者ロールID", value: "admin_role_ids" },
     { name: "運営サーバーID", value: "operation_guild_id" },
     { name: "会議サーバーID", value: "target_guild_ids" },
 ] as const;
@@ -93,7 +93,7 @@ const attendanceCommand = new SlashCommandBuilder()
  */
 const systemCommand = new SlashCommandBuilder()
     .setName("system")
-    .setDescription("システム設定 (管理者のみ)")
+    .setDescription("システム設定 (bot管理者のみ)")
     .addSubcommand((sub) =>
         sub
             .setName("config")
@@ -136,7 +136,7 @@ const systemCommand = new SlashCommandBuilder()
  */
 const setupCommand = new SlashCommandBuilder()
     .setName("setup")
-    .setDescription("初期設定 (管理者未設定時は誰でも実行可)")
+    .setDescription("初期設定 (bot管理者未設定時は誰でも実行可)")
     .addSubcommand((sub) =>
         sub
             .setName("target-guild")
@@ -168,7 +168,7 @@ const setupCommand = new SlashCommandBuilder()
     .addSubcommand((sub) =>
         sub
             .setName("admin-roles")
-            .setDescription("管理者ロールを設定")
+            .setDescription("bot管理者ロールを設定")
             .addStringOption((opt) =>
                 opt
                     .setName("roles")
@@ -179,7 +179,7 @@ const setupCommand = new SlashCommandBuilder()
     .addSubcommand((sub) =>
         sub
             .setName("staff-roles")
-            .setDescription("スタッフロールを設定")
+            .setDescription("事務局員ロールを設定")
             .addStringOption((opt) =>
                 opt
                     .setName("roles")

@@ -136,15 +136,15 @@ async function handleAdminRoles(
     await prisma.systemConfig.upsert({
         where: { key: "admin_role_ids" },
         update: { value: roles },
-        create: { key: "admin_role_ids", value: roles, description: "管理者ロールID" },
+        create: { key: "admin_role_ids", value: roles, description: "bot管理者ロールID" },
     });
 
     await interaction.reply({
-        content: `✅ 管理者ロールを設定しました: \`${roles}\`\n⚠️ 以降、/setup コマンドは管理者ロール保持者のみ実行可能です`,
+        content: `✅ bot管理者ロールを設定しました: \`${roles}\`\n⚠️ 以降、/setup コマンドはbot管理者ロール保持者のみ実行可能です`,
         flags: MessageFlags.SuppressNotifications,
     });
 
-    await logger.info("管理者ロール設定", {
+    await logger.info("bot管理者ロール設定", {
         ...getLogContext(interaction.user),
         details: `ロールID: ${roles}`,
     });
@@ -161,15 +161,15 @@ async function handleStaffRoles(
     await prisma.systemConfig.upsert({
         where: { key: "staff_role_ids" },
         update: { value: roles },
-        create: { key: "staff_role_ids", value: roles, description: "スタッフロールID" },
+        create: { key: "staff_role_ids", value: roles, description: "事務局員ロールID" },
     });
 
     await interaction.reply({
-        content: `✅ スタッフロールを設定しました: \`${roles}\``,
+        content: `✅ 事務局員ロールを設定しました: \`${roles}\``,
         flags: MessageFlags.SuppressNotifications,
     });
 
-    await logger.info("スタッフロール設定", {
+    await logger.info("事務局員ロール設定", {
         ...getLogContext(interaction.user),
         details: `ロールID: ${roles}`,
     });
@@ -256,12 +256,12 @@ async function handleStatus(
                 inline: true,
             },
             {
-                name: "管理者ロール",
+                name: "bot管理者ロール",
                 value: adminConfig?.value || "未設定",
                 inline: false,
             },
             {
-                name: "スタッフロール",
+                name: "事務局員ロール",
                 value: staffConfig?.value || "未設定",
                 inline: false,
             },
@@ -297,7 +297,7 @@ export async function handleSetup(
         const hasPermission = await hasAdminPermission(interaction.user.id);
         if (!hasPermission) {
             await interaction.reply({
-                content: "❌ このコマンドは管理者ロール保持者のみ実行可能です",
+                content: "❌ このコマンドはbot管理者ロール保持者のみ実行可能です",
                 ephemeral: true,
             });
             return;

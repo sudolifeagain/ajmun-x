@@ -19,6 +19,6 @@ export function generateDefaultColor(guildId: string): string {
  * Get attribute label in Japanese
  */
 export function getAttributeLabel(attr: string): string {
-    return attr === "staff" ? "スタッフ" :
-        attr === "organizer" ? "会議フロント" : "参加者";
+    return attr === "staff" ? "事務局員" :
+        attr === "organizer" ? "会議フロント" : "そのほか";
 }
