@@ -71,9 +71,17 @@ Botをサーバーに招待後、Discordで以下のコマンドを実行：
 |--------|----------|------|
 | **管理者** | `admin_role_ids` | `/system`、`/setup`（設定後）、`/attendance` 全機能 |
 | **スタッフ** | `staff_role_ids` | `/attendance` 全機能 |
+| **会議フロント** | `organizer_role_ids` | `/attendance` 自会議のみ |
 | **一般参加者** | - | Webログイン、QRコード発行のみ |
 
 > 💡 管理者ロールはスタッフ権限も含みます（上位互換）
+
+#### リモートサーバー設定
+
+運営サーバーから他サーバーを設定（会議サーバー登録に便利）:
+```
+/setup target-guild enable:true guild_id:123456789012345678
+```
 
 ---
 

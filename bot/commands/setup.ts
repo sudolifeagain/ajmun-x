@@ -45,51 +45,83 @@ function getLogContext(user: { id: string; username: string }) {
 
 /**
  * Handle /setup target-guild subcommand
+ * Supports optional guild_id to configure remote servers
  */
 async function handleTargetGuild(
     interaction: ChatInputCommandInteraction
 ): Promise<void> {
     const enable = interaction.options.getBoolean("enable", true);
-    const guildId = interaction.guildId!;
+    const remoteGuildId = interaction.options.getString("guild_id");
+    const targetGuildId = remoteGuildId || interaction.guildId!;
+
+    // Check if guild exists in database
+    const guild = await prisma.guild.findUnique({
+        where: { guildId: targetGuildId },
+    });
+
+    if (!guild) {
+        await interaction.reply({
+            content: `❌ サーバー \`${targetGuildId}\` はBotが参加していないか、まだ同期されていません。\n先に \`/system sync\` を実行してください。`,
+            ephemeral: true,
+        });
+        return;
+    }
 
     await prisma.guild.update({
-        where: { guildId },
+        where: { guildId: targetGuildId },
         data: { isTargetGuild: enable },
     });
 
+    const serverName = remoteGuildId ? `\`${targetGuildId}\` (${guild.guildName})` : `${interaction.guild?.name}`;
     await interaction.reply({
-        content: `✅ このサーバーを対象ギルドとして${enable ? "設定" : "解除"}しました`,
+        content: `✅ ${serverName} を対象ギルドとして${enable ? "設定" : "解除"}しました`,
         flags: MessageFlags.SuppressNotifications,
     });
 
     await logger.info(`対象ギルド${enable ? "設定" : "解除"}`, {
         ...getLogContext(interaction.user),
-        details: `サーバー: ${interaction.guild?.name}`,
+        details: `サーバー: ${guild.guildName} (${targetGuildId})`,
     });
 }
 
 /**
  * Handle /setup operation-server subcommand
+ * Supports optional guild_id to configure remote servers
  */
 async function handleOperationServer(
     interaction: ChatInputCommandInteraction
 ): Promise<void> {
     const enable = interaction.options.getBoolean("enable", true);
-    const guildId = interaction.guildId!;
+    const remoteGuildId = interaction.options.getString("guild_id");
+    const targetGuildId = remoteGuildId || interaction.guildId!;
+
+    // Check if guild exists in database
+    const guild = await prisma.guild.findUnique({
+        where: { guildId: targetGuildId },
+    });
+
+    if (!guild) {
+        await interaction.reply({
+            content: `❌ サーバー \`${targetGuildId}\` はBotが参加していないか、まだ同期されていません。`,
+            ephemeral: true,
+        });
+        return;
+    }
 
     await prisma.guild.update({
-        where: { guildId },
+        where: { guildId: targetGuildId },
         data: { isOperationServer: enable },
     });
 
+    const serverName = remoteGuildId ? `\`${targetGuildId}\` (${guild.guildName})` : `${interaction.guild?.name}`;
     await interaction.reply({
-        content: `✅ このサーバーを運営サーバーとして${enable ? "設定" : "解除"}しました`,
+        content: `✅ ${serverName} を運営サーバーとして${enable ? "設定" : "解除"}しました`,
         flags: MessageFlags.SuppressNotifications,
     });
 
     await logger.info(`運営サーバー${enable ? "設定" : "解除"}`, {
         ...getLogContext(interaction.user),
-        details: `サーバー: ${interaction.guild?.name}`,
+        details: `サーバー: ${guild.guildName} (${targetGuildId})`,
     });
 }
 
@@ -144,6 +176,43 @@ async function handleStaffRoles(
 }
 
 /**
+ * Handle /setup organizer-roles subcommand
+ * Adds to existing roles (does not overwrite)
+ */
+async function handleOrganizerRoles(
+    interaction: ChatInputCommandInteraction
+): Promise<void> {
+    const newRoles = interaction.options.getString("roles", true);
+
+    // Get existing roles
+    const existing = await prisma.systemConfig.findUnique({
+        where: { key: "organizer_role_ids" },
+    });
+
+    // Combine with existing (remove duplicates)
+    const combined = existing?.value
+        ? `${existing.value},${newRoles}`
+        : newRoles;
+    const uniqueRoles = [...new Set(combined.split(",").map((r) => r.trim()))].join(",");
+
+    await prisma.systemConfig.upsert({
+        where: { key: "organizer_role_ids" },
+        update: { value: uniqueRoles },
+        create: { key: "organizer_role_ids", value: uniqueRoles, description: "会議フロントロールID" },
+    });
+
+    await interaction.reply({
+        content: `✅ 会議フロントロールを追加しました: \`${newRoles}\`\n現在の設定: \`${uniqueRoles}\``,
+        flags: MessageFlags.SuppressNotifications,
+    });
+
+    await logger.info("会議フロントロール追加", {
+        ...getLogContext(interaction.user),
+        details: `追加: ${newRoles}, 合計: ${uniqueRoles}`,
+    });
+}
+
+/**
  * Handle /setup status subcommand
  */
 async function handleStatus(
@@ -161,6 +230,10 @@ async function handleStatus(
 
     const staffConfig = await prisma.systemConfig.findUnique({
         where: { key: "staff_role_ids" },
+    });
+
+    const organizerConfig = await prisma.systemConfig.findUnique({
+        where: { key: "organizer_role_ids" },
     });
 
     const embed = new EmbedBuilder()
@@ -190,6 +263,11 @@ async function handleStatus(
             {
                 name: "スタッフロール",
                 value: staffConfig?.value || "未設定",
+                inline: false,
+            },
+            {
+                name: "会議フロントロール",
+                value: organizerConfig?.value || "未設定",
                 inline: false,
             }
         )
@@ -238,6 +316,9 @@ export async function handleSetup(
             break;
         case "staff-roles":
             await handleStaffRoles(interaction);
+            break;
+        case "organizer-roles":
+            await handleOrganizerRoles(interaction);
             break;
         case "status":
             await handleStatus(interaction);

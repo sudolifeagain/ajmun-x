@@ -140,17 +140,29 @@ const setupCommand = new SlashCommandBuilder()
     .addSubcommand((sub) =>
         sub
             .setName("target-guild")
-            .setDescription("このサーバーを対象ギルドとして設定")
+            .setDescription("対象ギルドを設定")
             .addBooleanOption((opt) =>
                 opt.setName("enable").setDescription("有効/無効").setRequired(true)
+            )
+            .addStringOption((opt) =>
+                opt
+                    .setName("guild_id")
+                    .setDescription("他サーバーのID（省略時は現在のサーバー）")
+                    .setRequired(false)
             )
     )
     .addSubcommand((sub) =>
         sub
             .setName("operation-server")
-            .setDescription("このサーバーを運営サーバーとして設定")
+            .setDescription("運営サーバーを設定")
             .addBooleanOption((opt) =>
                 opt.setName("enable").setDescription("有効/無効").setRequired(true)
+            )
+            .addStringOption((opt) =>
+                opt
+                    .setName("guild_id")
+                    .setDescription("他サーバーのID（省略時は現在のサーバー）")
+                    .setRequired(false)
             )
     )
     .addSubcommand((sub) =>
@@ -172,6 +184,17 @@ const setupCommand = new SlashCommandBuilder()
                 opt
                     .setName("roles")
                     .setDescription("ロールID (カンマ区切りで複数指定可)")
+                    .setRequired(true)
+            )
+    )
+    .addSubcommand((sub) =>
+        sub
+            .setName("organizer-roles")
+            .setDescription("会議フロントロールを追加")
+            .addStringOption((opt) =>
+                opt
+                    .setName("roles")
+                    .setDescription("ロールID (カンマ区切りで複数指定可、既存に追加)")
                     .setRequired(true)
             )
     )
