@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
                         dmSendLogs: {
                             where: { sendType: "qrcode" },
                             orderBy: { createdAt: "desc" },
-                            take: 1,
+                            // take: 1, // Remove limit to get all logs
                         },
                     },
                 },
@@ -103,6 +103,11 @@ export async function GET(request: NextRequest) {
         const members = memberships.map((m) => {
             const userAttendance = attendanceMap.get(m.discordUserId);
             const latestDmLog = m.user.dmSendLogs[0];
+
+            // Collect all sent timestamps
+            const sentTimestamps = m.user.dmSendLogs
+                .filter(log => log.status === "sent" && log.sentAt)
+                .map(log => log.sentAt!.toISOString());
 
             // Build attendance by date object
             const attendanceByDate: Record<string, { attended: boolean; checkInTimestamp: string | null }> = {};
@@ -125,7 +130,7 @@ export async function GET(request: NextRequest) {
                 guildName: m.guild.guildName,
                 attribute: m.user.primaryAttribute,
                 dmStatus: latestDmLog?.status || "none",
-                dmSentAt: latestDmLog?.sentAt?.toISOString() || null,
+                dmSentAt: sentTimestamps.length > 0 ? sentTimestamps.join(",") : null, // Comma separated
                 dmErrorMessage: latestDmLog?.errorMessage || null,
                 attended,
                 attendanceByDate,

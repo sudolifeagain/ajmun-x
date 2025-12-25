@@ -249,8 +249,15 @@ function getAttributeLabel(attr) {
  * タイムスタンプをJSTでフォーマット
  */
 function formatTimestamp(isoString) {
-    const date = new Date(isoString);
-    return Utilities.formatDate(date, "Asia/Tokyo", "MM/dd HH:mm");
+    if (!isoString) return "";
+    // カンマ区切りなどで複数来る場合に対応
+    const timestamps = isoString.split(",");
+
+    return timestamps.map(ts => {
+        const date = new Date(ts.trim());
+        if (isNaN(date.getTime())) return "";
+        return Utilities.formatDate(date, "Asia/Tokyo", "MM/dd HH:mm");
+    }).join("\n"); // 改行区切りで表示（セル内改行）
 }
 
 // ==========================
