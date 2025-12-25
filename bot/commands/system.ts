@@ -219,6 +219,11 @@ async function handleShow(interaction: ChatInputCommandInteraction): Promise<voi
         select: { guildId: true, guildName: true },
     });
 
+    const unassignedGuilds = await prisma.guild.findMany({
+        where: { isOperationServer: false, isTargetGuild: false },
+        select: { guildId: true, guildName: true },
+    });
+
     const configList = configs
         .map((c) => {
             const formattedValue = formatConfigValue(c.value, c.key);
@@ -235,6 +240,10 @@ async function handleShow(interaction: ChatInputCommandInteraction): Promise<voi
         ? targetGuilds.map((g) => `• ${g.guildName}`).join("\n")
         : "未設定";
 
+    const unassignedList = unassignedGuilds.length > 0
+        ? unassignedGuilds.map((g) => `• ${g.guildName}`).join("\n")
+        : "なし";
+
     const embed = new EmbedBuilder()
         .setTitle("⚙️ システム設定")
         .setColor(0x3b82f6)
@@ -248,6 +257,11 @@ async function handleShow(interaction: ChatInputCommandInteraction): Promise<voi
             {
                 name: "📋 会議サーバー（出席対象）",
                 value: targetGuildList,
+                inline: true,
+            },
+            {
+                name: "⚪ 未設定サーバー",
+                value: unassignedList,
                 inline: true,
             }
         )
