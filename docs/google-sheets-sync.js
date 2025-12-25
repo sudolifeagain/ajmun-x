@@ -65,6 +65,9 @@ function syncAllAttendance() {
             "ニックネーム",
             "所属会議",
             "属性",
+            "DM送信",
+            "DM日時",
+            "DMエラー",
             ...dateLabels,  // 12/27, 12/28, 12/29, 12/30
             "出席日数"
         ];
@@ -83,6 +86,12 @@ function syncAllAttendance() {
                 if (m.nickname && !existing.nicknames.includes(m.nickname)) {
                     existing.nicknames.push(m.nickname);
                 }
+                // DM情報を更新（最新のものがあれば）
+                if (m.dmStatus && m.dmStatus !== "none") {
+                    existing.dmStatus = m.dmStatus;
+                    existing.dmSentAt = m.dmSentAt;
+                    existing.dmErrorMessage = m.dmErrorMessage;
+                }
                 // 各日の出席状況をマージ
                 if (m.attendanceByDate) {
                     for (const [date, info] of Object.entries(m.attendanceByDate)) {
@@ -98,6 +107,9 @@ function syncAllAttendance() {
                     nicknames: m.nickname ? [m.nickname] : [],
                     guilds: [m.guildName],
                     attribute: m.attribute,
+                    dmStatus: m.dmStatus,
+                    dmSentAt: m.dmSentAt,
+                    dmErrorMessage: m.dmErrorMessage,
                     attendanceByDate: m.attendanceByDate || {},
                 });
             }
@@ -124,12 +136,24 @@ function syncAllAttendance() {
 
             const attendedDays = countAttendedDays(u.attendanceByDate);
 
+            // DM状態の整形
+            let dmStatusLabel = "";
+            switch (u.dmStatus) {
+                case "sent": dmStatusLabel = "✅ 済"; break;
+                case "failed": dmStatusLabel = "❌ 失敗"; break;
+                case "pending": dmStatusLabel = "⏳ 処理中"; break;
+                default: dmStatusLabel = "-";
+            }
+
             return [
                 u.discordUserId,
                 u.globalName,
                 u.nicknames.join(", "),
                 u.guilds.join(", "),
                 getAttributeLabel(u.attribute),
+                dmStatusLabel,
+                u.dmSentAt ? formatTimestamp(u.dmSentAt) : "",
+                u.dmErrorMessage || "",
                 ...dailyAttendance,
                 attendedDays > 0 ? attendedDays : ""
             ];
