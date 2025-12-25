@@ -249,15 +249,26 @@ function getAttributeLabel(attr) {
  * タイムスタンプをJSTでフォーマット
  */
 function formatTimestamp(isoString) {
-    if (!isoString) return "";
-    // カンマ区切りなどで複数来る場合に対応
-    const timestamps = isoString.split(",");
+    if (!isoString || isoString === "null" || isoString === "undefined") return "";
 
-    return timestamps.map(ts => {
-        const date = new Date(ts.trim());
-        if (isNaN(date.getTime())) return "";
+    // カンマ区切りなどで複数来る場合に対応
+    const timestamps = isoString.split(",").filter(ts => ts && ts.trim());
+    if (timestamps.length === 0) return "";
+
+    const formatted = timestamps.map(ts => {
+        const trimmed = ts.trim();
+        if (!trimmed) return null;
+
+        const date = new Date(trimmed);
+        // Invalid date or very old date (before 2024) is likely a bug
+        if (isNaN(date.getTime()) || date.getFullYear() < 2024) {
+            console.log(`Invalid date skipped: ${trimmed}`);
+            return null;
+        }
         return Utilities.formatDate(date, "Asia/Tokyo", "MM/dd HH:mm");
-    }).join("\n"); // 改行区切りで表示（セル内改行）
+    }).filter(d => d !== null);
+
+    return formatted.join("\n"); // 改行区切りで表示（セル内改行）
 }
 
 // ==========================
