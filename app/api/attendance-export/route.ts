@@ -86,7 +86,15 @@ export async function GET(request: NextRequest) {
         const memberships = await prisma.userGuildMembership.findMany({
             where: whereClause,
             include: {
-                user: true,
+                user: {
+                    include: {
+                        dmSendLogs: {
+                            where: { sendType: "qrcode" },
+                            orderBy: { createdAt: "desc" },
+                            take: 1,
+                        },
+                    },
+                },
                 guild: true,
             },
         });
@@ -94,6 +102,7 @@ export async function GET(request: NextRequest) {
         // Build response data
         const members = memberships.map((m) => {
             const userAttendance = attendanceMap.get(m.discordUserId);
+            const latestDmLog = m.user.dmSendLogs[0];
 
             // Build attendance by date object
             const attendanceByDate: Record<string, { attended: boolean; checkInTimestamp: string | null }> = {};
@@ -115,6 +124,9 @@ export async function GET(request: NextRequest) {
                 guildId: m.guildId,
                 guildName: m.guild.guildName,
                 attribute: m.user.primaryAttribute,
+                dmStatus: latestDmLog?.status || "none",
+                dmSentAt: latestDmLog?.sentAt?.toISOString() || null,
+                dmErrorMessage: latestDmLog?.errorMessage || null,
                 attended,
                 attendanceByDate,
                 // For backward compatibility with single date mode
