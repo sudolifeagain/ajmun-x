@@ -114,13 +114,12 @@ export async function syncGuildMembers(guild: Guild): Promise<number> {
 
     return syncedCount;
 }
-
 /**
  * Sync all guilds the bot is in
  */
 export async function syncAllGuilds(
     guilds: Map<string, Guild>
-): Promise<{ guilds: number; members: number }> {
+): Promise<{ guilds: number; members: number; uniqueUsers: number }> {
     let totalGuilds = 0;
     let totalMembers = 0;
 
@@ -135,5 +134,8 @@ export async function syncAllGuilds(
         }
     }
 
-    return { guilds: totalGuilds, members: totalMembers };
+    // Get unique user count
+    const uniqueUsers = await prisma.user.count();
+
+    return { guilds: totalGuilds, members: totalMembers, uniqueUsers };
 }

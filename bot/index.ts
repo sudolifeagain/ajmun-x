@@ -50,12 +50,12 @@ client.once("ready", async () => {
 
     console.log("Starting initial member sync...");
     const result = await syncAllGuilds(client.guilds.cache);
-    console.log(`Initial sync complete: ${result.guilds} guilds, ${result.members} members`);
+    console.log(`Initial sync complete: ${result.guilds} guilds, ${result.members} members (${result.uniqueUsers} unique users)`);
 
     // Log bot startup
     await logger.info("Bot started", {
         source: "Bot",
-        details: `${result.guilds} guilds, ${result.members} members synced`,
+        details: `${result.guilds} guilds, ${result.members} members (${result.uniqueUsers} unique users) synced`,
     });
 });
 

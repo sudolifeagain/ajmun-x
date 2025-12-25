@@ -116,12 +116,12 @@ async function handleSync(
     try {
         const result = await syncAllGuilds(client.guilds.cache);
         await interaction.editReply({
-            content: `✅ 同期完了: ${result.guilds}サーバー、${result.members}メンバー`,
+            content: `✅ 同期完了: ${result.guilds}サーバー、${result.members}メンバー（ユニーク: ${result.uniqueUsers}人）`,
         });
 
         await logger.info("メンバー同期実行", {
             ...getLogContext(interaction.user),
-            details: `${result.guilds}サーバー、${result.members}メンバーを同期`,
+            details: `${result.guilds}サーバー、${result.members}メンバー（ユニーク: ${result.uniqueUsers}人）を同期`,
         });
     } catch (error) {
         console.error("Sync error:", error);
