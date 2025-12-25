@@ -14,6 +14,17 @@ const CONFIG = {
     SHEET_NAME: "出席状況",  // 同期先のシート名
     // 大会日程（4日間）
     EVENT_DATES: ["2025-12-27", "2025-12-28", "2025-12-29", "2025-12-30"],
+    // 会議名の表示順（上から順に表示、リストにない会議は最後にアルファベット順）
+    CONFERENCE_ORDER: [
+        "AJMUN37 内政不干渉原則宣言",
+        "AJMUN37 カルタヘナ議定書",
+        "AJMUN37 NPT2005",
+        "AJMUN37 欧州における移民及び庇護に関する新協定（PAM）",
+        "平和への課題：補遺_AJMUN37",
+        "Ajmun37th_南ローデシア情勢",  // 部分一致で判定
+        "AJMUN37ワシントン会議",
+        "AJMUN37th",
+    ],
 };
 
 // ==========================
@@ -115,8 +126,14 @@ function syncAllAttendance() {
             }
         }
 
-        // Map → 配列に変換してソート（出席日数が多い順）
+        // Map → 配列に変換してソート（会議優先順 → 出席日数順）
         const aggregatedUsers = Array.from(userMap.values()).sort((a, b) => {
+            // 1. 会議優先順でソート（最初の会議を基準に）
+            const aConf = getConferencePriority(a.guilds[0]);
+            const bConf = getConferencePriority(b.guilds[0]);
+            if (aConf !== bConf) return aConf - bConf;
+
+            // 2. 同じ会議内では出席日数が多い順
             const aCount = countAttendedDays(a.attendanceByDate);
             const bCount = countAttendedDays(b.attendanceByDate);
             return bCount - aCount;
@@ -149,7 +166,8 @@ function syncAllAttendance() {
                 u.discordUserId,
                 u.globalName,
                 u.nicknames.join(", "),
-                u.guilds.join(", "),
+                // 会議名も優先順でソートして表示
+                u.guilds.sort((a, b) => getConferencePriority(a) - getConferencePriority(b)).join(", "),
                 getAttributeLabel(u.attribute),
                 dmStatusLabel,
                 u.dmSentAt ? formatTimestamp(u.dmSentAt) : "",
@@ -195,6 +213,24 @@ function syncAllAttendance() {
 function countAttendedDays(attendanceByDate) {
     if (!attendanceByDate) return 0;
     return Object.values(attendanceByDate).filter(info => info && info.attended).length;
+}
+
+/**
+ * 会議名の優先順位を取得（部分一致対応）
+ * 優先順位リストにない会議は大きな数字を返す（最後にソート）
+ */
+function getConferencePriority(guildName) {
+    if (!guildName) return 999;
+
+    for (let i = 0; i < CONFIG.CONFERENCE_ORDER.length; i++) {
+        const pattern = CONFIG.CONFERENCE_ORDER[i];
+        // 完全一致または部分一致
+        if (guildName === pattern || guildName.includes(pattern) || pattern.includes(guildName)) {
+            return i;
+        }
+    }
+    // リストにない会議は最後（999）
+    return 999;
 }
 
 /**
