@@ -208,6 +208,17 @@ async function handleDelete(interaction: ChatInputCommandInteraction): Promise<v
 async function handleShow(interaction: ChatInputCommandInteraction): Promise<void> {
     const configs = await prisma.systemConfig.findMany();
 
+    // Get server configurations from Guild table
+    const operationServers = await prisma.guild.findMany({
+        where: { isOperationServer: true },
+        select: { guildId: true, guildName: true },
+    });
+
+    const targetGuilds = await prisma.guild.findMany({
+        where: { isTargetGuild: true },
+        select: { guildId: true, guildName: true },
+    });
+
     const configList = configs
         .map((c) => {
             const formattedValue = formatConfigValue(c.value, c.key);
@@ -215,10 +226,31 @@ async function handleShow(interaction: ChatInputCommandInteraction): Promise<voi
         })
         .join("\n\n");
 
+    // Format server lists
+    const opServerList = operationServers.length > 0
+        ? operationServers.map((g) => `• ${g.guildName}`).join("\n")
+        : "未設定";
+
+    const targetGuildList = targetGuilds.length > 0
+        ? targetGuilds.map((g) => `• ${g.guildName}`).join("\n")
+        : "未設定";
+
     const embed = new EmbedBuilder()
         .setTitle("⚙️ システム設定")
         .setColor(0x3b82f6)
-        .setDescription(configList || "設定がありません")
+        .setDescription(configList || "ロール設定がありません")
+        .addFields(
+            {
+                name: "🏢 運営サーバー",
+                value: opServerList,
+                inline: true,
+            },
+            {
+                name: "📋 会議サーバー（出席対象）",
+                value: targetGuildList,
+                inline: true,
+            }
+        )
         .setFooter({ text: "ロール: @ロール名 / ユーザー: @ユーザー名 で表示されます" })
         .setTimestamp();
 
