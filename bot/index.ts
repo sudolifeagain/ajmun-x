@@ -13,7 +13,7 @@
 import { Client, GatewayIntentBits, REST, Routes } from "discord.js";
 import { config } from "dotenv";
 import { commands } from "./commandDefinitions";
-import { handleAttendance, handleSystem, handleSystemButton, handleSetup } from "./commands";
+import { handleAttendance, handleSystem, handleSystemButton, handleSetup, handleHelp, handleHelpSelect } from "./commands";
 import { handleMemberAdd, handleMemberRemove, handleMemberUpdate } from "./events";
 import { syncAllGuilds } from "./services";
 import logger from "./utils/discordLogger";
@@ -72,6 +72,20 @@ client.on("interactionCreate", async (interaction) => {
         return;
     }
 
+    // Handle select menu interactions
+    if (interaction.isStringSelectMenu()) {
+        try {
+            if (interaction.customId === "help_category_select") {
+                await handleHelpSelect(interaction);
+                return;
+            }
+        } catch (error) {
+            console.error("Select menu error:", error);
+            await interaction.reply({ content: "❌ エラーが発生しました。", ephemeral: true });
+        }
+        return;
+    }
+
     if (!interaction.isChatInputCommand()) return;
 
     try {
@@ -84,6 +98,9 @@ client.on("interactionCreate", async (interaction) => {
                 break;
             case "setup":
                 await handleSetup(interaction);
+                break;
+            case "help":
+                await handleHelp(interaction);
                 break;
         }
     } catch (error) {

@@ -236,7 +236,14 @@ const setupCommand = new SlashCommandBuilder()
     );
 
 /**
+ * /help command definition
+ */
+const helpCommand = new SlashCommandBuilder()
+    .setName("help")
+    .setDescription("Botの使い方を表示");
+
+/**
  * All slash commands for registration
  */
-export const commands = [attendanceCommand, systemCommand, setupCommand];
+export const commands = [attendanceCommand, systemCommand, setupCommand, helpCommand];
 
