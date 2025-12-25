@@ -69,12 +69,12 @@ Botをサーバーに招待後、Discordで以下のコマンドを実行：
 
 | ロール | 設定キー | 権限 |
 |--------|----------|------|
-| **管理者** | `admin_role_ids` | `/system`、`/setup`（設定後）、`/attendance` 全機能 |
-| **スタッフ** | `staff_role_ids` | `/attendance` 全機能 |
+| **bot管理者** | `admin_role_ids` | `/system`、`/setup`（設定後）、`/attendance` 全機能 |
+| **事務局員** | `staff_role_ids` | `/attendance` 全機能 |
 | **会議フロント** | `organizer_role_ids` | `/attendance` 自会議のみ |
-| **一般参加者** | - | Webログイン、QRコード発行のみ |
+| **参加者** | - | Webログイン、QRコード発行のみ |
 
-> 💡 管理者ロールはスタッフ権限も含みます（上位互換）
+> 💡 bot管理者ロールは事務局員権限も含みます（上位互換）
 
 #### リモートサーバー設定
 

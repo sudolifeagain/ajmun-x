@@ -202,11 +202,11 @@ organizer（会議フロント）以上のロールで実行可能
 | `/attendance present` | 出席済み一覧 |
 | `/attendance absent` | 未出席一覧 |
 
-※ organizerは自分の所属サーバーのみ、staff/adminは全サーバーを確認可能
+※ 会議フロントは自分の所属サーバーのみ、事務局員/bot管理者は全サーバーを確認可能
 
 ---
 
-# Discordコマンド（管理者向け）
+# Discordコマンド（bot管理者向け）
 
 | コマンド | 説明 |
 |---------|------|
@@ -219,14 +219,14 @@ organizer（会議フロント）以上のロールで実行可能
 
 # 初期設定コマンド（/setup）
 
-admin未設定時は誰でも実行可、設定後はadminのみ
+bot管理者未設定時は誰でも実行可、設定後はbot管理者のみ
 
 | コマンド | 説明 |
 |---------|------|
 | `/setup target-guild <enable> [guild_id]` | 対象ギルド設定 |
 | `/setup operation-server <enable> [guild_id]` | 運営サーバー設定 |
-| `/setup admin-roles <roles>` | 管理者ロール設定（以降ロック） |
-| `/setup staff-roles <roles>` | スタッフロール設定 |
+| `/setup admin-roles <roles>` | bot管理者ロール設定（以降ロック） |
+| `/setup staff-roles <roles>` | 事務局員ロール設定 |
 | `/setup organizer-roles <roles>` | 会議フロントロール追加 |
 | `/setup status` | 現在の設定を表示 |
 
