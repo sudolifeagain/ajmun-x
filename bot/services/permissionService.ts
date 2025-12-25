@@ -109,6 +109,11 @@ export async function hasOrganizerPermission(userId: string): Promise<boolean> {
  * Get guild IDs where the user is an organizer (has organizer role)
  * Returns empty array if user is staff/admin (they can see all guilds)
  * Returns null if user has no organizer permission
+ * 
+ * Logic:
+ * 1. Check operation server membership for organizer roles
+ * 2. Look up OrganizerRoleMapping for target guild IDs
+ * 3. Fall back to legacy behavior (check all guilds for organizer roles)
  */
 export async function getOrganizerGuildIds(userId: string): Promise<string[] | null> {
     const level = await getUserPermissionLevel(userId);
@@ -123,22 +128,62 @@ export async function getOrganizerGuildIds(userId: string): Promise<string[] | n
         return null;
     }
 
-    // Organizer - find which guilds they have organizer role in
+    // Organizer - check for role-guild mappings first
     const config = await getPermissionConfig();
+
+    // Find operation server
+    const operationServer = await prisma.guild.findFirst({
+        where: { isOperationServer: true },
+    });
+
+    const organizerGuildIds = new Set<string>();
+
+    if (operationServer) {
+        // Get user's membership in operation server
+        const opMembership = await prisma.userGuildMembership.findUnique({
+            where: {
+                discordUserId_guildId: {
+                    discordUserId: userId,
+                    guildId: operationServer.guildId,
+                },
+            },
+        });
+
+        if (opMembership) {
+            const userRoles: string[] = JSON.parse(opMembership.roleIds || "[]");
+
+            // Check for role-guild mappings
+            for (const roleId of userRoles) {
+                const mapping = await prisma.organizerRoleMapping.findUnique({
+                    where: { roleId },
+                });
+
+                if (mapping) {
+                    const targetIds = mapping.targetGuildIds.split(",").map((id: string) => id.trim());
+                    targetIds.forEach((id: string) => organizerGuildIds.add(id));
+                }
+            }
+
+            // If mappings found, return them
+            if (organizerGuildIds.size > 0) {
+                return [...organizerGuildIds];
+            }
+        }
+    }
+
+    // Legacy fallback: find which guilds they have organizer role in
     const memberships = await prisma.userGuildMembership.findMany({
         where: { discordUserId: userId },
     });
 
-    const organizerGuildIds: string[] = [];
-
     for (const membership of memberships) {
         const userRoles: string[] = JSON.parse(membership.roleIds || "[]");
         if (userRoles.some((roleId) => config.organizerRoleIds.includes(roleId))) {
-            organizerGuildIds.push(membership.guildId);
+            organizerGuildIds.add(membership.guildId);
         }
     }
 
-    return organizerGuildIds;
+    return [...organizerGuildIds];
 }
 
 /**

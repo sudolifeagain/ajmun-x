@@ -177,19 +177,45 @@ async function handleStaffRoles(
 
 /**
  * Handle /setup organizer-roles subcommand
- * Adds to existing roles (does not overwrite)
+ * If guild_ids is provided: Create role-guild mapping in OrganizerRoleMapping
+ * If guild_ids is omitted: Add to organizer_role_ids in SystemConfig (legacy behavior)
  */
 async function handleOrganizerRoles(
     interaction: ChatInputCommandInteraction
 ): Promise<void> {
     const newRoles = interaction.options.getString("roles", true);
+    const guildIds = interaction.options.getString("guild_ids");
 
-    // Get existing roles
+    // If guild_ids is provided, create role-guild mapping
+    if (guildIds) {
+        const roleIds = newRoles.split(",").map((r) => r.trim());
+        const targetGuildIds = guildIds.split(",").map((g) => g.trim()).join(",");
+
+        for (const roleId of roleIds) {
+            await prisma.organizerRoleMapping.upsert({
+                where: { roleId },
+                update: { targetGuildIds },
+                create: { roleId, targetGuildIds },
+            });
+        }
+
+        await interaction.reply({
+            content: `✅ 会議フロントマッピングを設定しました:\nロール: \`${newRoles}\`\n対象サーバー: \`${guildIds}\``,
+            flags: MessageFlags.SuppressNotifications,
+        });
+
+        await logger.info("会議フロントマッピング設定", {
+            ...getLogContext(interaction.user),
+            details: `ロール: ${newRoles} → サーバー: ${guildIds}`,
+        });
+        return;
+    }
+
+    // Legacy behavior: Add to organizer_role_ids in SystemConfig
     const existing = await prisma.systemConfig.findUnique({
         where: { key: "organizer_role_ids" },
     });
 
-    // Combine with existing (remove duplicates)
     const combined = existing?.value
         ? `${existing.value},${newRoles}`
         : newRoles;
@@ -202,7 +228,7 @@ async function handleOrganizerRoles(
     });
 
     await interaction.reply({
-        content: `✅ 会議フロントロールを追加しました: \`${newRoles}\`\n現在の設定: \`${uniqueRoles}\``,
+        content: `✅ 会議フロントロールを追加しました: \`${newRoles}\`\n現在の設定: \`${uniqueRoles}\`\n\n💡 特定サーバーに限定する場合は guild_ids オプションを使用してください`,
         flags: MessageFlags.SuppressNotifications,
     });
 

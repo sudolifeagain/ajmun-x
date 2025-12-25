@@ -95,3 +95,10 @@ model SystemConfig {
   description String @default("")
 }
 
+// 会議フロントロールとギルドIDのマッピング
+model OrganizerRoleMapping {
+  id              String   @id @default(uuid())
+  roleId          String   @unique  // 運営サーバーのロールID
+  targetGuildIds  String   // カンマ区切りの会議サーバーID
+  createdAt       DateTime @default(now())
+}

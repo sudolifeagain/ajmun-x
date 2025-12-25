@@ -229,8 +229,14 @@ const setupCommand = new SlashCommandBuilder()
             .addStringOption((opt) =>
                 opt
                     .setName("roles")
-                    .setDescription("ロールID (カンマ区切りで複数指定可、既存に追加)")
+                    .setDescription("ロールID (カンマ区切りで複数指定可)")
                     .setRequired(true)
+            )
+            .addStringOption((opt) =>
+                opt
+                    .setName("guild_ids")
+                    .setDescription("対象サーバーID (カンマ区切り、省略時は全サーバー)")
+                    .setRequired(false)
             )
     )
     .addSubcommand((sub) =>
