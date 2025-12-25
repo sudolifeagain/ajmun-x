@@ -25,6 +25,7 @@ export default function ScannerPage() {
     const [result, setResult] = useState<ScanResult>({ status: "idle", message: "QRコードをスキャンしてください" });
     const [isScanning, setIsScanning] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [isMirrored, setIsMirrored] = useState(false);
     const scannerRef = useRef<Html5Qrcode | null>(null);
     const lastScannedRef = useRef<string>("");
     const resetTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -283,7 +284,10 @@ export default function ScannerPage() {
                 <div
                     id="qr-reader"
                     className={`w-full max-w-lg ${!isScanning ? "hidden" : ""}`}
-                    style={{ maxHeight: "80vh" }}
+                    style={{
+                        maxHeight: "80vh",
+                        transform: isMirrored ? "scaleX(-1)" : "none",
+                    }}
                 />
                 {!isScanning && (
                     <div className="text-center">
@@ -296,7 +300,18 @@ export default function ScannerPage() {
             {/* Bottom Status - only visible in idle state */}
             {result.status === "idle" && (
                 <div className="fixed bottom-0 w-full p-4 text-center bg-gradient-to-t from-black/50 to-transparent z-20">
-                    <p className="text-white/80 text-sm">
+                    <div className="flex items-center justify-center gap-4">
+                        <button
+                            onClick={() => setIsMirrored(!isMirrored)}
+                            className={`px-4 py-2 rounded-lg font-medium transition-all ${isMirrored
+                                    ? "bg-blue-500 text-white"
+                                    : "bg-white/20 text-white/80 hover:bg-white/30"
+                                }`}
+                        >
+                            🔄 左右反転 {isMirrored ? "ON" : "OFF"}
+                        </button>
+                    </div>
+                    <p className="text-white/80 text-sm mt-2">
                         {isScanning ? "📷 カメラ画面全体でスキャン可能！" : "カメラ準備中..."}
                     </p>
                 </div>
