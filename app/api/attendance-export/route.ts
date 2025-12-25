@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/app/lib/prisma";
+import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from "@/app/lib/rateLimit";
 
 /**
  * Attendance Export API for Google Sheets integration
@@ -25,6 +26,17 @@ export async function GET(request: NextRequest) {
     const expectedKey = process.env.EXPORT_API_KEY;
     if (!expectedKey || apiKey !== expectedKey) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Rate limiting by API key
+    const rateLimitResult = checkRateLimit(`export:${apiKey}`, RATE_LIMITS.EXPORT_API);
+
+    if (!rateLimitResult.allowed) {
+        const headers = getRateLimitHeaders(rateLimitResult, RATE_LIMITS.EXPORT_API);
+        return NextResponse.json(
+            { error: "Rate limit exceeded" },
+            { status: 429, headers }
+        );
     }
 
     try {

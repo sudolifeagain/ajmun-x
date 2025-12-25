@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/app/lib/prisma";
 import { verifyQrToken } from "@/app/lib/session";
 import logger from "@/app/lib/discordLogger";
+import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from "@/app/lib/rateLimit";
 
 interface ScanRequest {
     token: string;
@@ -26,6 +27,18 @@ interface ScanResponse {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse<ScanResponse>> {
+    // Rate limiting by IP
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+    const rateLimitResult = checkRateLimit(`scan:${ip}`, RATE_LIMITS.SCAN_API);
+
+    if (!rateLimitResult.allowed) {
+        const headers = getRateLimitHeaders(rateLimitResult, RATE_LIMITS.SCAN_API);
+        return NextResponse.json(
+            { status: "error", message: "Rate limit exceeded" },
+            { status: 429, headers }
+        );
+    }
+
     try {
         const body: ScanRequest = await request.json();
         const { token } = body;
