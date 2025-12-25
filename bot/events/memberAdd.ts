@@ -1,6 +1,6 @@
 import { GuildMember } from "discord.js";
 import { prisma, generateDefaultColor } from "../utils";
-import { getAttributeConfig, determineAttribute, isOperationServer, isTargetGuild } from "../services";
+import { getAttributeConfig, determineAttribute, isTargetGuild } from "../services";
 
 /**
  * Handle guildMemberAdd event
@@ -9,16 +9,14 @@ export async function handleMemberAdd(member: GuildMember): Promise<void> {
     if (member.user.bot) return;
 
     const config = await getAttributeConfig();
-    const isOpServer = isOperationServer(member.guild.id, config);
     const isTarget = isTargetGuild(member.guild.id, config);
 
-    // Upsert Guild
+    // Upsert Guild (preserve isOperationServer flag)
     await prisma.guild.upsert({
         where: { guildId: member.guild.id },
         update: {
             guildName: member.guild.name,
             guildIconUrl: member.guild.iconURL(),
-            isOperationServer: isOpServer,
             isTargetGuild: isTarget,
         },
         create: {
@@ -27,7 +25,7 @@ export async function handleMemberAdd(member: GuildMember): Promise<void> {
             guildIconUrl: member.guild.iconURL(),
             defaultColor: generateDefaultColor(member.guild.id),
             isTargetGuild: isTarget,
-            isOperationServer: isOpServer,
+            isOperationServer: false,
         },
     });
 
@@ -41,30 +39,19 @@ export async function handleMemberAdd(member: GuildMember): Promise<void> {
     const avatarUrl = member.displayAvatarURL();
     const placeholderToken = `bot-sync-${member.id}-${Date.now()}`;
 
-    // Calculate attribute
-    let newAttribute: "staff" | "organizer" | "participant" | undefined = undefined;
-    if (isOpServer) {
-        newAttribute = determineAttribute(roleIds, config);
-    }
-
-    // Prepare update data
-    const updateData: Record<string, unknown> = {
-        globalName: member.user.globalName || member.user.username,
-        defaultAvatarUrl: avatarUrl,
-    };
-    if (newAttribute) {
-        updateData.primaryAttribute = newAttribute;
-    }
-
+    // Upsert user (attribute will be recalculated after membership is saved)
     await prisma.user.upsert({
         where: { discordUserId: member.id },
-        update: updateData,
+        update: {
+            globalName: member.user.globalName || member.user.username,
+            defaultAvatarUrl: avatarUrl,
+        },
         create: {
             discordUserId: member.id,
             qrToken: placeholderToken,
             globalName: member.user.globalName || member.user.username,
             defaultAvatarUrl: avatarUrl,
-            primaryAttribute: newAttribute || "participant",
+            primaryAttribute: "participant",
         },
     });
 
@@ -87,6 +74,26 @@ export async function handleMemberAdd(member: GuildMember): Promise<void> {
             avatarUrl: avatarUrl,
             roleIds: JSON.stringify(roleIds),
         },
+    });
+
+    // Recalculate attribute from ALL guild memberships
+    const allMemberships = await prisma.userGuildMembership.findMany({
+        where: { discordUserId: member.id },
+        select: { roleIds: true },
+    });
+
+    const allRoleIds = allMemberships.flatMap((m) => {
+        try {
+            return JSON.parse(m.roleIds) as string[];
+        } catch {
+            return [];
+        }
+    });
+
+    const finalAttribute = determineAttribute(allRoleIds, config);
+    await prisma.user.update({
+        where: { discordUserId: member.id },
+        data: { primaryAttribute: finalAttribute },
     });
 
     console.log(`Member added: ${member.user.tag} in ${member.guild.name}`);

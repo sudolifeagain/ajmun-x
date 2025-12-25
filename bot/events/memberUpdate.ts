@@ -1,6 +1,6 @@
 import { GuildMember, PartialGuildMember } from "discord.js";
 import { prisma } from "../utils";
-import { getAttributeConfig, determineAttribute, isOperationServer } from "../services";
+import { getAttributeConfig, determineAttribute } from "../services";
 
 /**
  * Handle guildMemberUpdate event
@@ -11,9 +11,6 @@ export async function handleMemberUpdate(
 ): Promise<void> {
     if (newMember.user.bot) return;
 
-    const config = await getAttributeConfig();
-    const isOpServer = isOperationServer(newMember.guild.id, config);
-
     const guild = await prisma.guild.findUnique({
         where: { guildId: newMember.guild.id },
     });
@@ -23,16 +20,7 @@ export async function handleMemberUpdate(
     const roleIds = newMember.roles.cache.map((r) => r.id);
     const avatarUrl = newMember.displayAvatarURL();
 
-    // Attribute recalculation on role update
-    if (isOpServer) {
-        const newAttribute = determineAttribute(roleIds, config);
-
-        await prisma.user.update({
-            where: { discordUserId: newMember.id },
-            data: { primaryAttribute: newAttribute },
-        });
-    }
-
+    // Update membership first
     await prisma.userGuildMembership.upsert({
         where: {
             discordUserId_guildId: {
@@ -52,5 +40,26 @@ export async function handleMemberUpdate(
             avatarUrl: avatarUrl,
             roleIds: JSON.stringify(roleIds),
         },
+    });
+
+    // Recalculate attribute from ALL guild memberships
+    const config = await getAttributeConfig();
+    const allMemberships = await prisma.userGuildMembership.findMany({
+        where: { discordUserId: newMember.id },
+        select: { roleIds: true },
+    });
+
+    const allRoleIds = allMemberships.flatMap((m) => {
+        try {
+            return JSON.parse(m.roleIds) as string[];
+        } catch {
+            return [];
+        }
+    });
+
+    const newAttribute = determineAttribute(allRoleIds, config);
+    await prisma.user.update({
+        where: { discordUserId: newMember.id },
+        data: { primaryAttribute: newAttribute },
     });
 }
