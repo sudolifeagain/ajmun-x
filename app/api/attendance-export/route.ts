@@ -5,18 +5,20 @@ import prisma from "@/app/lib/prisma";
  * Attendance Export API for Google Sheets integration
  * 
  * Query params:
- *   - date: YYYY-MM-DD (default: today)
+ *   - date: YYYY-MM-DD (default: today) - for single day mode
+ *   - dates: comma-separated dates (e.g., "2025-12-27,2025-12-28,2025-12-29,2025-12-30") - for multi-day mode
  *   - guildId: specific guild ID (optional)
  *   - apiKey: authentication key
  * 
  * Returns:
- *   - members: all members with attendance status
+ *   - members: all members with attendance status (includes attendanceByDate for multi-day)
  *   - guilds: list of guilds
  */
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const apiKey = searchParams.get("apiKey");
-    const date = searchParams.get("date") || getTodayJST();
+    const singleDate = searchParams.get("date");
+    const multiDates = searchParams.get("dates");
     const guildId = searchParams.get("guildId");
 
     // Simple API key authentication
@@ -26,10 +28,15 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        // Get attendance logs for the date
+        // Determine which dates to query
+        const dates = multiDates
+            ? multiDates.split(",").map(d => d.trim())
+            : [singleDate || getTodayJST()];
+
+        // Get attendance logs for all requested dates
         const attendanceLogs = await prisma.attendanceLog.findMany({
             where: {
-                checkInDate: date,
+                checkInDate: { in: dates },
                 ...(guildId && { primaryGuildId: guildId }),
             },
             include: {
@@ -37,7 +44,14 @@ export async function GET(request: NextRequest) {
             },
         });
 
-        const attendedUserIds = new Set(attendanceLogs.map((log) => log.discordUserId));
+        // Group attendance by user and date
+        const attendanceMap = new Map<string, Map<string, Date | null>>();
+        for (const log of attendanceLogs) {
+            if (!attendanceMap.has(log.discordUserId)) {
+                attendanceMap.set(log.discordUserId, new Map());
+            }
+            attendanceMap.get(log.discordUserId)!.set(log.checkInDate, log.checkInTimestamp);
+        }
 
         // Get all members with their guild memberships
         const whereClause = guildId
@@ -54,9 +68,20 @@ export async function GET(request: NextRequest) {
 
         // Build response data
         const members = memberships.map((m) => {
-            const attendanceLog = attendanceLogs.find(
-                (log) => log.discordUserId === m.discordUserId && log.primaryGuildId === m.guildId
-            );
+            const userAttendance = attendanceMap.get(m.discordUserId);
+
+            // Build attendance by date object
+            const attendanceByDate: Record<string, { attended: boolean; checkInTimestamp: string | null }> = {};
+            for (const date of dates) {
+                const timestamp = userAttendance?.get(date);
+                attendanceByDate[date] = {
+                    attended: !!timestamp,
+                    checkInTimestamp: timestamp?.toISOString() || null,
+                };
+            }
+
+            // For backward compatibility: attended = true if attended on any of the dates
+            const attended = dates.some(date => attendanceByDate[date].attended);
 
             return {
                 discordUserId: m.discordUserId,
@@ -65,8 +90,10 @@ export async function GET(request: NextRequest) {
                 guildId: m.guildId,
                 guildName: m.guild.guildName,
                 attribute: m.user.primaryAttribute,
-                attended: attendedUserIds.has(m.discordUserId),
-                checkInTimestamp: attendanceLog?.checkInTimestamp?.toISOString() || null,
+                attended,
+                attendanceByDate,
+                // For backward compatibility with single date mode
+                checkInTimestamp: attendanceByDate[dates[0]]?.checkInTimestamp || null,
             };
         });
 
@@ -80,7 +107,7 @@ export async function GET(request: NextRequest) {
         });
 
         return NextResponse.json({
-            date,
+            dates,
             members,
             guilds,
             summary: {

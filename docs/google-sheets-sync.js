@@ -12,6 +12,8 @@ const CONFIG = {
     API_URL: "https://ajmun37.re4lity.com/api/attendance-export",
     API_KEY: "ここにAPIキーを入力",  // .envのEXPORT_API_KEYと同じ値
     SHEET_NAME: "出席状況",  // 同期先のシート名
+    // 大会日程（4日間）
+    EVENT_DATES: ["2025-12-27", "2025-12-28", "2025-12-29", "2025-12-30"],
 };
 
 // ==========================
@@ -19,23 +21,18 @@ const CONFIG = {
 // ==========================
 
 /**
- * 全会議の出席状況を同期（1つのシートに統合）
- * メニューから実行、またはトリガーで定期実行
- */
-/**
- * 全会議の出席状況を同期（1つのシートに統合）
+ * 全会議の出席状況を同期（4日間分を列で表示）
  * メニューから実行、またはトリガーで定期実行
  */
 function syncAllAttendance() {
     console.log("syncAllAttendance started");
     try {
         const ss = SpreadsheetApp.getActiveSpreadsheet();
-        const today = Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy-MM-dd");
 
-        console.log(`Fetching data for ${today}...`);
+        console.log(`Fetching data for ${CONFIG.EVENT_DATES.join(", ")}...`);
 
-        // APIからデータ取得
-        const data = fetchAttendanceData(today);
+        // APIからデータ取得（全日程分）
+        const data = fetchAttendanceData(CONFIG.EVENT_DATES);
         if (!data) {
             console.error("No data returned from API");
             return;
@@ -56,15 +53,20 @@ function syncAllAttendance() {
             sheet = ss.insertSheet(CONFIG.SHEET_NAME);
         }
 
-        // ヘッダー
+        // ヘッダー（4日分の列を追加）
+        const dateLabels = CONFIG.EVENT_DATES.map(d => {
+            const [, month, day] = d.split("-");
+            return `${parseInt(month)}/${parseInt(day)}`;
+        });
+
         const headers = [
             "Discord ID",
             "グローバル名",
             "ニックネーム",
             "所属会議",
             "属性",
-            "出席状況",
-            "スキャン日時"
+            ...dateLabels,  // 12/27, 12/28, 12/29, 12/30
+            "出席日数"
         ];
 
         console.log("Aggregating by user...");
@@ -81,10 +83,13 @@ function syncAllAttendance() {
                 if (m.nickname && !existing.nicknames.includes(m.nickname)) {
                     existing.nicknames.push(m.nickname);
                 }
-                // 出席状況は1つでも出席ならtrue
-                if (m.attended) {
-                    existing.attended = true;
-                    existing.checkInTimestamp = existing.checkInTimestamp || m.checkInTimestamp;
+                // 各日の出席状況をマージ
+                if (m.attendanceByDate) {
+                    for (const [date, info] of Object.entries(m.attendanceByDate)) {
+                        if (info.attended) {
+                            existing.attendanceByDate[date] = info;
+                        }
+                    }
                 }
             } else {
                 userMap.set(m.discordUserId, {
@@ -93,30 +98,42 @@ function syncAllAttendance() {
                     nicknames: m.nickname ? [m.nickname] : [],
                     guilds: [m.guildName],
                     attribute: m.attribute,
-                    attended: m.attended,
-                    checkInTimestamp: m.checkInTimestamp,
+                    attendanceByDate: m.attendanceByDate || {},
                 });
             }
         }
 
-        // Map → 配列に変換してソート（出席済み → 未出席）
+        // Map → 配列に変換してソート（出席日数が多い順）
         const aggregatedUsers = Array.from(userMap.values()).sort((a, b) => {
-            if (a.attended && !b.attended) return -1;
-            if (!a.attended && b.attended) return 1;
-            return 0;
+            const aCount = countAttendedDays(a.attendanceByDate);
+            const bCount = countAttendedDays(b.attendanceByDate);
+            return bCount - aCount;
         });
 
         console.log(`Unique users: ${aggregatedUsers.length}`);
 
-        const rows = aggregatedUsers.map(u => [
-            u.discordUserId,
-            u.globalName,
-            u.nicknames.join(", "),
-            u.guilds.join(", "),
-            getAttributeLabel(u.attribute),
-            u.attended ? "✅ 済" : "❌ 未",
-            u.checkInTimestamp ? formatTimestamp(u.checkInTimestamp) : "",
-        ]);
+        const rows = aggregatedUsers.map(u => {
+            // 各日の出席状況
+            const dailyAttendance = CONFIG.EVENT_DATES.map(date => {
+                const info = u.attendanceByDate[date];
+                if (info && info.attended) {
+                    return "✅";
+                }
+                return "";
+            });
+
+            const attendedDays = countAttendedDays(u.attendanceByDate);
+
+            return [
+                u.discordUserId,
+                u.globalName,
+                u.nicknames.join(", "),
+                u.guilds.join(", "),
+                getAttributeLabel(u.attribute),
+                ...dailyAttendance,
+                attendedDays > 0 ? attendedDays : ""
+            ];
+        });
 
         console.log("Writing to sheet...");
         // シートをクリアして書き込み
@@ -127,15 +144,19 @@ function syncAllAttendance() {
             sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
         }
 
-        // 最終更新日時をシートに表示（ヘッダー列数に合わせて調整）
-        sheet.getRange("H1").setValue(`最終更新: ${today} ${Utilities.formatDate(new Date(), "Asia/Tokyo", "HH:mm")}`);
+        // 最終更新日時をシートに表示
+        const now = Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy-MM-dd HH:mm");
+        sheet.getRange(1, headers.length + 1).setValue(`最終更新: ${now}`);
 
-        // サマリー表示（ユーザー単位で集計）
-        const attended = aggregatedUsers.filter(u => u.attended).length;
-        const total = aggregatedUsers.length;
+        // サマリー表示
+        const totalUsers = aggregatedUsers.length;
+        const todayDate = Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy-MM-dd");
+        const todayAttended = aggregatedUsers.filter(u =>
+            u.attendanceByDate[todayDate] && u.attendanceByDate[todayDate].attended
+        ).length;
 
-        console.log(`Sync completed: ${attended}/${total}`);
-        ss.toast(`同期完了: ${attended}/${total}人 出席済み`, "完了");
+        console.log(`Sync completed: Today ${todayAttended}/${totalUsers}`);
+        ss.toast(`同期完了: 本日 ${todayAttended}/${totalUsers}人 出席済み`, "完了");
 
     } catch (e) {
         console.error("Sync Error:", e);
@@ -145,16 +166,25 @@ function syncAllAttendance() {
 }
 
 /**
- * APIからデータを取得
+ * 出席日数をカウント
  */
-function fetchAttendanceData(date) {
-    const url = `${CONFIG.API_URL}?apiKey=${CONFIG.API_KEY}&date=${date}`;
+function countAttendedDays(attendanceByDate) {
+    if (!attendanceByDate) return 0;
+    return Object.values(attendanceByDate).filter(info => info && info.attended).length;
+}
+
+/**
+ * APIからデータを取得（複数日対応）
+ */
+function fetchAttendanceData(dates) {
+    const datesParam = dates.join(",");
+    const url = `${CONFIG.API_URL}?apiKey=${CONFIG.API_KEY}&dates=${datesParam}`;
     console.log(`Connecting to: ${url}`);
 
     try {
         const response = UrlFetchApp.fetch(url, {
             muteHttpExceptions: true,
-            validateHttpsCertificates: false // 自己証明書などの場合用（念の為）
+            validateHttpsCertificates: false
         });
 
         const responseCode = response.getResponseCode();
