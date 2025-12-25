@@ -257,7 +257,7 @@ async function handleShow(interaction: ChatInputCommandInteraction): Promise<voi
             const guildNames = m.targetGuildIds.split(",")
                 .map((id: string) => guildNameMap.get(id.trim()) || id.trim())
                 .join(", ");
-            return `• \`${m.roleId}\` → ${guildNames}`;
+            return `• <@&${m.roleId}> → ${guildNames}`;
         }).join("\n")
         : "なし";
 
