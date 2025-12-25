@@ -40,28 +40,19 @@ export async function getSession(): Promise<User | null> {
     const cookieStore = await cookies();
     const sessionCookie = cookieStore.get("session");
 
-    console.log("[DEBUG] getSession - Cookie present:", !!sessionCookie?.value);
-
     if (!sessionCookie?.value) {
-        console.log("[DEBUG] getSession - No session cookie");
         return null;
     }
 
     const token = sessionCookie.value;
-    console.log("[DEBUG] getSession - Token length:", token.length);
-    console.log("[DEBUG] getSession - Token starts with 'ey':", token.startsWith("ey"));
-    console.log("[DEBUG] getSession - Token has dots:", token.includes("."));
 
     // Try JWT verification first (new format contains dots and starts with "ey")
     if (token.includes(".") && token.startsWith("ey")) {
-        console.log("[DEBUG] getSession - Attempting JWT verification");
         try {
             const { payload } = await jwtVerify(token, getJwtSecret());
             const userId = payload.userId as string;
-            console.log("[DEBUG] getSession - JWT verified, userId:", userId);
 
             if (!userId) {
-                console.log("[DEBUG] getSession - JWT payload missing userId");
                 return null;
             }
 
@@ -69,26 +60,20 @@ export async function getSession(): Promise<User | null> {
                 where: { discordUserId: userId },
             });
 
-            console.log("[DEBUG] getSession - User found:", !!user);
             return user;
-        } catch (error) {
-            console.log("[DEBUG] getSession - JWT verification failed:", error);
+        } catch {
             return null;
         }
     }
 
     // Fallback: Legacy Base64 token (for existing sessions during migration)
-    console.log("[DEBUG] getSession - Attempting legacy Base64 verification");
     try {
         const payload: SessionPayload = JSON.parse(
             Buffer.from(token, "base64url").toString()
         );
-        console.log("[DEBUG] getSession - Legacy payload userId:", payload.userId);
-        console.log("[DEBUG] getSession - Legacy payload exp:", payload.exp, "now:", Date.now());
 
         // Check expiration
         if (Date.now() > payload.exp) {
-            console.log("[DEBUG] getSession - Legacy token expired");
             return null;
         }
 
@@ -96,7 +81,6 @@ export async function getSession(): Promise<User | null> {
             where: { discordUserId: payload.userId },
         });
 
-        console.log("[DEBUG] getSession - Legacy user found:", !!user);
         return user;
     } catch {
         return null;
@@ -108,19 +92,12 @@ export function verifyQrToken(token: string): { valid: boolean; userId?: string 
         const secret = process.env.QR_SECRET || "default-secret-change-me";
         const [payloadBase64, signature] = token.split(".");
 
-        console.log("[DEBUG] verifyQrToken - token length:", token.length);
-        console.log("[DEBUG] verifyQrToken - has payload:", !!payloadBase64);
-        console.log("[DEBUG] verifyQrToken - has signature:", !!signature);
-
         if (!payloadBase64 || !signature) {
-            console.log("[DEBUG] verifyQrToken - missing payload or signature");
             return { valid: false };
         }
 
         const payload = Buffer.from(payloadBase64, "base64url").toString();
         const [userId] = payload.split(":");
-
-        console.log("[DEBUG] verifyQrToken - userId:", userId);
 
         // Verify signature
         const expectedSignature = createHash("sha256")
@@ -128,18 +105,12 @@ export function verifyQrToken(token: string): { valid: boolean; userId?: string 
             .digest("hex")
             .slice(0, 16);
 
-        console.log("[DEBUG] verifyQrToken - expected sig:", expectedSignature);
-        console.log("[DEBUG] verifyQrToken - actual sig:", signature);
-
         if (signature !== expectedSignature) {
-            console.log("[DEBUG] verifyQrToken - signature mismatch!");
             return { valid: false };
         }
 
-        console.log("[DEBUG] verifyQrToken - SUCCESS");
         return { valid: true, userId };
-    } catch (error) {
-        console.log("[DEBUG] verifyQrToken - error:", error);
+    } catch {
         return { valid: false };
     }
 }

@@ -7,12 +7,9 @@ import TicketCard from "./TicketCard";
 export const dynamic = 'force-dynamic';
 
 export default async function TicketPage() {
-    console.log("[DEBUG] TicketPage - Starting session check");
     const user = await getSession();
-    console.log("[DEBUG] TicketPage - Session result:", user ? `User ${user.discordUserId}` : "null");
 
     if (!user) {
-        console.log("[DEBUG] TicketPage - Redirecting to / due to no session");
         redirect("/");
     }
 

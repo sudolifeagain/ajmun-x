@@ -176,9 +176,6 @@ export async function GET(request: NextRequest) {
         const { createSessionToken } = await import("@/app/lib/session");
         const sessionToken = await createSessionToken(discordUser.id);
 
-        console.log("[DEBUG] Creating session token for:", discordUser.id);
-        console.log("[DEBUG] Token length:", sessionToken.length);
-
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.url.split('/api')[0];
         const redirectUrl = new URL("/ticket", baseUrl).toString();
 
@@ -209,8 +206,6 @@ export async function GET(request: NextRequest) {
 
         // Delete oauth state cookie
         response.headers.append("Set-Cookie", "discord_oauth_state=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT");
-
-        console.log("[DEBUG] Cookie header set:", cookieValue.substring(0, 50) + "...");
 
         return response;
     } catch (error) {
