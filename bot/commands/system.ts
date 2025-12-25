@@ -1,7 +1,7 @@
 /**
  * System Command Handler
  *
- * Handles /system command with subcommands: sync, config, delete, show
+ * Handles /system command with subcommands: sync, config, delete, show, send-qr, dm-status
  * All subcommands except sync require admin permission.
  */
 
@@ -17,7 +17,7 @@ import {
     User,
 } from "discord.js";
 import { prisma } from "../utils";
-import { syncAllGuilds, hasStaffPermission, hasAdminPermission, arePermissionsConfigured } from "../services";
+import { syncAllGuilds, hasStaffPermission, hasAdminPermission, arePermissionsConfigured, getTargetUsers, sendQRCodesToUsers, getDmSendStatus } from "../services";
 import logger from "../utils/discordLogger";
 
 // ============================================================================
@@ -232,6 +232,129 @@ async function handleShow(interaction: ChatInputCommandInteraction): Promise<voi
 // ============================================================================
 
 /**
+ * Handle /system send-qr subcommand
+ */
+async function handleSendQr(
+    interaction: ChatInputCommandInteraction,
+    client: Client
+): Promise<void> {
+    const target = interaction.options.getString("target", true);
+    const userIdsStr = interaction.options.getString("user_ids");
+    const retryFailed = interaction.options.getBoolean("retry_failed") ?? false;
+
+    // Validate test mode requires user_ids
+    if (target === "test" && !userIdsStr) {
+        await interaction.reply({
+            content: "❌ テストモードでは `user_ids` オプションが必要です。",
+            ephemeral: true,
+        });
+        return;
+    }
+
+    await interaction.deferReply();
+
+    try {
+        // Get target users
+        const targetUsers = await getTargetUsers({
+            attribute: target === "test" ? undefined : (target as "all" | "participant" | "organizer" | "staff"),
+            retryFailed,
+            specificUserIds: target === "test" && userIdsStr
+                ? userIdsStr.split(",").map((id) => id.trim()).filter(Boolean)
+                : undefined,
+        });
+
+        if (targetUsers.length === 0) {
+            await interaction.editReply({
+                content: "⚠️ 送信対象のユーザーが見つかりませんでした。",
+            });
+            return;
+        }
+
+        // Confirm the operation
+        await interaction.editReply({
+            content: `📤 **${targetUsers.length}人**にQRコードを送信中...\nこの処理には時間がかかる場合があります。`,
+        });
+
+        // Send QR codes with progress updates
+        let lastProgressUpdate = 0;
+        const result = await sendQRCodesToUsers(targetUsers, client, async (current, total, sendResult) => {
+            // Update progress every 10 users
+            if (current - lastProgressUpdate >= 10 || current === total) {
+                lastProgressUpdate = current;
+                const progressPercent = Math.round((current / total) * 100);
+                await interaction.editReply({
+                    content: `📤 送信中... **${current}/${total}** (${progressPercent}%)`,
+                }).catch(() => { }); // Ignore errors if message is too old
+            }
+        });
+
+        // Final result
+        const embed = new EmbedBuilder()
+            .setTitle("📤 DM送信結果")
+            .setColor(result.failed > 0 ? 0xf59e0b : 0x10b981)
+            .addFields(
+                { name: "送信対象", value: `${result.total}人`, inline: true },
+                { name: "成功", value: `${result.sent}人`, inline: true },
+                { name: "失敗", value: `${result.failed}人`, inline: true }
+            )
+            .setTimestamp();
+
+        if (result.failedUsers.length > 0 && result.failedUsers.length <= 10) {
+            embed.addFields({
+                name: "失敗したユーザー",
+                value: result.failedUsers
+                    .slice(0, 10)
+                    .map((u) => `<@${u.userId}>: ${u.error}`)
+                    .join("\n"),
+            });
+        } else if (result.failedUsers.length > 10) {
+            embed.addFields({
+                name: "失敗したユーザー",
+                value: `${result.failedUsers.length}人（/system dm-status で確認可能）`,
+            });
+        }
+
+        await interaction.editReply({
+            content: "",
+            embeds: [embed],
+        });
+
+        await logger.info("QRコードDM送信", {
+            ...getLogContext(interaction.user),
+            details: `対象: ${target}, 成功: ${result.sent}, 失敗: ${result.failed}`,
+        });
+    } catch (error) {
+        console.error("Send QR error:", error);
+        await interaction.editReply({
+            content: "❌ QRコード送信中にエラーが発生しました。",
+        });
+    }
+}
+
+/**
+ * Handle /system dm-status subcommand
+ */
+async function handleDmStatus(interaction: ChatInputCommandInteraction): Promise<void> {
+    const status = await getDmSendStatus();
+
+    const embed = new EmbedBuilder()
+        .setTitle("📊 DM送信状況")
+        .setColor(0x3b82f6)
+        .addFields(
+            { name: "合計", value: `${status.total}件`, inline: true },
+            { name: "✅ 送信成功", value: `${status.sent}件`, inline: true },
+            { name: "❌ 失敗", value: `${status.failed}件`, inline: true },
+            { name: "⏳ 処理中", value: `${status.pending}件`, inline: true }
+        )
+        .setTimestamp();
+
+    await interaction.reply({
+        embeds: [embed],
+        flags: MessageFlags.SuppressNotifications,
+    });
+}
+
+/**
  * Handle /system command
  */
 export async function handleSystem(
@@ -262,6 +385,12 @@ export async function handleSystem(
             break;
         case "show":
             await handleShow(interaction);
+            break;
+        case "send-qr":
+            await handleSendQr(interaction, client);
+            break;
+        case "dm-status":
+            await handleDmStatus(interaction);
             break;
     }
 }

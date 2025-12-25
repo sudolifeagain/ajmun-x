@@ -22,6 +22,7 @@ model User {
 
   guildMemberships  UserGuildMembership[]
   attendanceLogs    AttendanceLog[]
+  dmSendLogs        DmSendLog[]
 }
 
 // サーバー情報
@@ -71,9 +72,26 @@ model AttendanceLog {
   @@unique([discordUserId, checkInDate])
 }
 
+// DM送信ログ
+model DmSendLog {
+  id              Int       @id @default(autoincrement())
+  discordUserId   String
+  sendType        String    // "qrcode", "announcement" など
+  status          String    // "pending", "sent", "failed"
+  errorMessage    String?
+  createdAt       DateTime  @default(now())
+  sentAt          DateTime?
+
+  user            User      @relation(fields: [discordUserId], references: [discordUserId], onDelete: Cascade)
+
+  @@index([discordUserId])
+  @@index([status])
+}
+
 // システム設定
 model SystemConfig {
   key         String @id
   value       String
   description String @default("")
 }
+

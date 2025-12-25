@@ -129,6 +129,39 @@ const systemCommand = new SlashCommandBuilder()
                     .setRequired(true)
                     .addChoices(...configKeyChoices)
             )
+    )
+    .addSubcommand((sub) =>
+        sub
+            .setName("send-qr")
+            .setDescription("QRコードをDM送信")
+            .addStringOption((opt) =>
+                opt
+                    .setName("target")
+                    .setDescription("送信対象")
+                    .setRequired(true)
+                    .addChoices(
+                        { name: "全員", value: "all" },
+                        { name: "そのほか", value: "participant" },
+                        { name: "会議フロント", value: "organizer" },
+                        { name: "事務局員", value: "staff" },
+                        { name: "テスト（指定ユーザーのみ）", value: "test" }
+                    )
+            )
+            .addStringOption((opt) =>
+                opt
+                    .setName("user_ids")
+                    .setDescription("テスト送信時のユーザーID（カンマ区切りで複数可）")
+                    .setRequired(false)
+            )
+            .addBooleanOption((opt) =>
+                opt
+                    .setName("retry_failed")
+                    .setDescription("以前失敗したユーザーのみ再送信")
+                    .setRequired(false)
+            )
+    )
+    .addSubcommand((sub) =>
+        sub.setName("dm-status").setDescription("DM送信状況を確認")
     );
 
 /**

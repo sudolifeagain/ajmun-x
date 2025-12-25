@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHash, randomBytes } from "crypto";
 import prisma from "@/app/lib/prisma";
 import logger from "@/app/lib/discordLogger";
+import { generateQrToken } from "@/app/lib/qrToken";
 
 interface DiscordUser {
     id: string;
@@ -10,17 +10,6 @@ interface DiscordUser {
     avatar: string | null;
 }
 
-function generateQrToken(userId: string): string {
-    const secret = process.env.QR_SECRET || "default-secret-change-me";
-    const timestamp = Date.now().toString();
-    const randomPart = randomBytes(16).toString("hex");
-    const payload = `${userId}:${timestamp}:${randomPart}`;
-    const signature = createHash("sha256")
-        .update(`${payload}:${secret}`)
-        .digest("hex")
-        .slice(0, 16);
-    return `${Buffer.from(payload).toString("base64url")}.${signature}`;
-}
 
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
