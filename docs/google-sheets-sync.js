@@ -175,16 +175,20 @@ function countAttendedDays(attendanceByDate) {
 
 /**
  * APIからデータを取得（複数日対応）
+ * Authorizationヘッダーで認証
  */
 function fetchAttendanceData(dates) {
     const datesParam = dates.join(",");
-    const url = `${CONFIG.API_URL}?apiKey=${CONFIG.API_KEY}&dates=${datesParam}`;
+    const url = `${CONFIG.API_URL}?dates=${datesParam}`;
     console.log(`Connecting to: ${url}`);
 
     try {
         const response = UrlFetchApp.fetch(url, {
             muteHttpExceptions: true,
-            validateHttpsCertificates: false
+            validateHttpsCertificates: false,
+            headers: {
+                "Authorization": `Bearer ${CONFIG.API_KEY}`
+            }
         });
 
         const responseCode = response.getResponseCode();

@@ -27,13 +27,22 @@ export async function GET(request: NextRequest) {
     const code = searchParams.get("code");
     const state = searchParams.get("state");
     const storedState = request.cookies.get("discord_oauth_state")?.value;
+    const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
 
     // CSRF check
     if (!state || state !== storedState) {
+        await logger.warn("ログイン失敗（CSRF検証エラー）", {
+            source: "Web (OAuth)",
+            details: `IP: ${clientIp}, state不一致またはstate欠落`,
+        });
         return NextResponse.redirect(new URL("/?error=invalid_state", request.url));
     }
 
     if (!code) {
+        await logger.warn("ログイン失敗（認可コード欠落）", {
+            source: "Web (OAuth)",
+            details: `IP: ${clientIp}`,
+        });
         return NextResponse.redirect(new URL("/?error=no_code", request.url));
     }
 
@@ -42,6 +51,10 @@ export async function GET(request: NextRequest) {
     const redirectUri = process.env.DISCORD_REDIRECT_URI;
 
     if (!clientId || !clientSecret || !redirectUri) {
+        await logger.error("ログイン失敗（サーバー設定エラー）", {
+            source: "Web (OAuth)",
+            details: "Discord認証情報が設定されていません",
+        });
         return NextResponse.redirect(new URL("/?error=config", request.url));
     }
 

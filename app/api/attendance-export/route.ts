@@ -5,11 +5,14 @@ import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from "@/app/lib/rate
 /**
  * Attendance Export API for Google Sheets integration
  * 
+ * Authentication:
+ *   - Authorization: Bearer <API_KEY> (recommended)
+ *   - Or apiKey query param (deprecated, for backward compatibility)
+ * 
  * Query params:
  *   - date: YYYY-MM-DD (default: today) - for single day mode
  *   - dates: comma-separated dates (e.g., "2025-12-27,2025-12-28,2025-12-29,2025-12-30") - for multi-day mode
  *   - guildId: specific guild ID (optional)
- *   - apiKey: authentication key
  * 
  * Returns:
  *   - members: all members with attendance status (includes attendanceByDate for multi-day)
@@ -17,12 +20,22 @@ import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from "@/app/lib/rate
  */
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
-    const apiKey = searchParams.get("apiKey");
     const singleDate = searchParams.get("date");
     const multiDates = searchParams.get("dates");
     const guildId = searchParams.get("guildId");
 
-    // Simple API key authentication
+    // Get API key from Authorization header (preferred) or query param (deprecated)
+    const authHeader = request.headers.get("Authorization");
+    let apiKey: string | null = null;
+
+    if (authHeader?.startsWith("Bearer ")) {
+        apiKey = authHeader.slice(7);
+    } else {
+        // Fallback to query param for backward compatibility
+        apiKey = searchParams.get("apiKey");
+    }
+
+    // API key authentication
     const expectedKey = process.env.EXPORT_API_KEY;
     if (!expectedKey || apiKey !== expectedKey) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
