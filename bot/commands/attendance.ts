@@ -159,7 +159,7 @@ async function handlePresent(
 
     const displayUsers = allUsers.slice(0, MAX_DISPLAY);
     const remaining = allUsers.length - displayUsers.length;
-    const userList = displayUsers.map((name) => `• ${name}`).join("\n");
+    const userList = displayUsers.map((name) => `• ${name.replace(/_/g, "\\_")}`).join("\n");
 
     const embed = new EmbedBuilder()
         .setTitle("✅ 本日出席済み")
@@ -230,7 +230,7 @@ async function handleAbsent(
 
     const displayUsers = allUsers.slice(0, MAX_DISPLAY);
     const remaining = allUsers.length - displayUsers.length;
-    const userList = displayUsers.map((name) => `• ${name}`).join("\n");
+    const userList = displayUsers.map((name) => `• ${name.replace(/_/g, "\\_")}`).join("\n");
 
     const embed = new EmbedBuilder()
         .setTitle("❌ 本日未出席")
