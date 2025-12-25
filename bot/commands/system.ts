@@ -224,6 +224,13 @@ async function handleShow(interaction: ChatInputCommandInteraction): Promise<voi
         select: { guildId: true, guildName: true },
     });
 
+    // Get role-guild mappings
+    const roleMappings = await prisma.organizerRoleMapping.findMany();
+    const allGuilds = await prisma.guild.findMany({
+        select: { guildId: true, guildName: true },
+    });
+    const guildNameMap = new Map(allGuilds.map(g => [g.guildId, g.guildName]));
+
     const configList = configs
         .map((c) => {
             const formattedValue = formatConfigValue(c.value, c.key);
@@ -242,6 +249,16 @@ async function handleShow(interaction: ChatInputCommandInteraction): Promise<voi
 
     const unassignedList = unassignedGuilds.length > 0
         ? unassignedGuilds.map((g) => `• ${g.guildName}`).join("\n")
+        : "なし";
+
+    // Format role-guild mappings
+    const mappingList = roleMappings.length > 0
+        ? roleMappings.map((m) => {
+            const guildNames = m.targetGuildIds.split(",")
+                .map((id: string) => guildNameMap.get(id.trim()) || id.trim())
+                .join(", ");
+            return `• <@&${m.roleId}> → ${guildNames}`;
+        }).join("\n")
         : "なし";
 
     const embed = new EmbedBuilder()
@@ -263,6 +280,11 @@ async function handleShow(interaction: ChatInputCommandInteraction): Promise<voi
                 name: "⚪ 未設定サーバー",
                 value: unassignedList,
                 inline: true,
+            },
+            {
+                name: "🔗 ロール→会議マッピング",
+                value: mappingList,
+                inline: false,
             }
         )
         .setFooter({ text: "ロール: @ロール名 / ユーザー: @ユーザー名 で表示されます" })
