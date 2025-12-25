@@ -61,17 +61,15 @@ style: |
 
 ---
 
-# 事前準備 (1/3)
+## 1. QRコードの準備
 
-https://ajmun37.re4lity.com にアクセス
+1.  **BotからのDMを確認**
+    -   運営BotからQRコードがDMで送られます。これを保存してください。
 
-「Discordでログイン」をクリック
-
----
-
-# 事前準備 (2/3)
-
-Discordの認証画面が開く
+2.  **DMが届かない場合**
+    -   受信設定などで届かない場合は、システムにWebログインして表示します。
+    -   [https://ajmun37.re4lity.com/](https://ajmun37.re4lity.com/) にアクセス
+    -   「Discordでログイン」をクリック
 
 PCの場合: Discordアプリまたはブラウザで認証画面が開く
 スマホの場合: Discordアプリで認証画面が開く

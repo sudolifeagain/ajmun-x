@@ -638,9 +638,28 @@ sudo apt install -y unattended-upgrades
 sudo dpkg-reconfigure -plow unattended-upgrades
 ```
 
+### 7.3 運用フロー: QRコード配布
+
+今大会では、参加者へのQRコード配布は **BotによるDM一斉送信** を基本とします。
+
+1. **Bot管理者**が以下のコマンドを実行し、全員にQRコードを配ります。
+   ```
+   /system send-qr target:全員
+   ```
+   - ログイン未完了のユーザーにも、自動的に正規QRトークンが生成され送信されます。
+   - DMブロック等で送信失敗した場合、ログに記録されます。
+
+2. **参加者**は、DMで届いたQRコードを入場証として使用します。
+   - スクリーンショットを推奨してください。
+
+3. **DMが届かない場合（例外対応）**
+   - DM設定で受信拒否している場合などは、従来の **[Webログイン](https://ajmun37.re4lity.com/)** によるQR表示を案内してください。
+   - ログインすれば同じQRコードが表示されます。
+
 ---
 
 ## 参考リンク
+
 
 - [Oracle Cloud Free Tier](https://www.oracle.com/cloud/free/)
 - [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/)
