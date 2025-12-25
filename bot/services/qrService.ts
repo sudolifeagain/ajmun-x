@@ -4,7 +4,7 @@
  * Provides QR code generation and DM sending functionality for the Discord bot.
  */
 
-import { AttachmentBuilder, Client, User } from "discord.js";
+import { ActionRowBuilder, AttachmentBuilder, ButtonBuilder, ButtonStyle, Client, User, MessageFlags } from "discord.js";
 import QRCode from "qrcode";
 import { prisma } from "../utils";
 import { generateQrToken, isValidQrTokenFormat } from "../../app/lib/qrToken";
@@ -135,6 +135,7 @@ export async function sendQRCodeDM(
                     `ご質問等はサーバー内で事務局（@事務局員 等）へメンションにてお願いします。`,
                 ].filter(Boolean).join("\n"),
                 files: [attachment],
+                flags: MessageFlags.SuppressNotifications,
             });
         } catch (dmError) {
             const error = dmError as { code?: number; message?: string };
