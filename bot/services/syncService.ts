@@ -11,17 +11,17 @@ export async function syncGuildMembers(guild: Guild): Promise<number> {
         : null;
 
     const config = await getAttributeConfig();
-    const isOpServer = isOperationServer(guild.id, config);
+    const isOpServer = await isOperationServer(guild.id);
     const isTarget = isTargetGuild(guild.id, config);
 
-    // Upsert guild
+    // Upsert guild (preserve existing isOperationServer flag, don't overwrite from config)
     await prisma.guild.upsert({
         where: { guildId: guild.id },
         update: {
             guildName: guild.name,
             guildIconUrl: guildIconUrl,
-            isOperationServer: isOpServer,
             isTargetGuild: isTarget,
+            // Note: We don't overwrite isOperationServer here - it's set by /setup command
         },
         create: {
             guildId: guild.id,
@@ -29,9 +29,10 @@ export async function syncGuildMembers(guild: Guild): Promise<number> {
             guildIconUrl: guildIconUrl,
             defaultColor: generateDefaultColor(guild.id),
             isTargetGuild: isTarget,
-            isOperationServer: isOpServer,
+            isOperationServer: false,
         },
     });
+
 
     // Fetch all members
     const members = await guild.members.fetch();
@@ -44,43 +45,24 @@ export async function syncGuildMembers(guild: Guild): Promise<number> {
         const avatarUrl = member.displayAvatarURL();
         const placeholderToken = `bot-sync-${member.id}-${Date.now()}`;
 
-        // Determine attribute
-        let newAttribute: "staff" | "organizer" | "participant" | undefined = undefined;
-        if (isOpServer) {
-            newAttribute = determineAttribute(roleIds, config);
-        }
-
-        // Fetch existing user
-        const existingUser = await prisma.user.findUnique({
-            where: { discordUserId: member.id },
-        });
-
-        // Determine what to save
-        let attributeToSave = existingUser?.primaryAttribute || "participant";
-        if (isOpServer && newAttribute) {
-            attributeToSave = newAttribute;
-        } else if (!existingUser) {
-            attributeToSave = "participant";
-        }
-
-        // Upsert user
-        await prisma.user.upsert({
+        // 1. Ensure User exists (Upsert)
+        // We don't verify attribute here, just ensure record exists
+        const user = await prisma.user.upsert({
             where: { discordUserId: member.id },
             update: {
                 globalName: member.user.globalName || member.user.username,
                 defaultAvatarUrl: avatarUrl,
-                primaryAttribute: attributeToSave,
             },
             create: {
                 discordUserId: member.id,
                 qrToken: placeholderToken,
                 globalName: member.user.globalName || member.user.username,
                 defaultAvatarUrl: avatarUrl,
-                primaryAttribute: attributeToSave,
+                primaryAttribute: "participant", // Default, will be recalculated
             },
         });
 
-        // Upsert membership
+        // 2. Upsert Membership (store current roles)
         await prisma.userGuildMembership.upsert({
             where: {
                 discordUserId_guildId: {
@@ -101,6 +83,31 @@ export async function syncGuildMembers(guild: Guild): Promise<number> {
                 roleIds: JSON.stringify(roleIds),
             },
         });
+
+        // 3. Recalculate Attribute based on ALL guild memberships
+        // This ensures that having an Organizer role in ANY server promotes the user
+        const allMemberships = await prisma.userGuildMembership.findMany({
+            where: { discordUserId: member.id },
+            select: { roleIds: true },
+        });
+
+        const allRoleIds = allMemberships.flatMap((m) => {
+            try {
+                return JSON.parse(m.roleIds) as string[];
+            } catch {
+                return [];
+            }
+        });
+
+        const newAttribute = determineAttribute(allRoleIds, config);
+
+        // 4. Update User if attribute changed
+        if (user.primaryAttribute !== newAttribute) {
+            await prisma.user.update({
+                where: { discordUserId: member.id },
+                data: { primaryAttribute: newAttribute },
+            });
+        }
 
         syncedCount++;
     }

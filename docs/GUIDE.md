@@ -175,9 +175,10 @@ sqlite3 prisma/dev.db "INSERT INTO SystemConfig (key, value, description) VALUES
 
 #### STEP 5: サーバー設定
 
-Discordで管理者として実行：
+現在は `/setup` コマンドで設定します（[1.5 初期設定](#15-初期設定setup-コマンド)参照）。
+
+会議サーバーIDを手動設定する場合：
 ```
-/system config operation_guild_id <運営サーバーID>
 /system config target_guild_ids <会議A>,<会議B>,<会議C>,...
 ```
 
@@ -192,11 +193,12 @@ Discordで管理者として実行：
 
 | キー | 説明 | 例 |
 |-----|------|-----|
-| `operation_guild_id` | 運営サーバーのID。属性判定に使用 | `123456789` |
 | `target_guild_ids` | 会議サーバーのID（カンマ区切り）。出席管理対象 | `111,222,333` |
 | `admin_role_ids` | 管理者ロール/ユーザーID | ロールIDまたはユーザーID |
 | `staff_role_ids` | スタッフロール/ユーザーID | 同上 |
 | `organizer_role_ids` | 会議フロントロール/ユーザーID | 同上 |
+
+> 💡 **運営サーバー設定**: `/setup operation-server enable:true` を使用（`Guild`テーブルに保存）
 
 > 💡 `target_guild_ids` が**未設定**の場合は全サーバーが対象。**設定済み**の場合は指定サーバーのみが対象。
 

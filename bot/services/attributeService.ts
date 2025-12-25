@@ -3,7 +3,6 @@ import { prisma } from "../utils";
 interface AttributeConfig {
     staffRoleIds: string[];
     organizerRoleIds: string[];
-    operationGuildId: string | null;
     targetGuildIds: string[];
 }
 
@@ -11,17 +10,15 @@ interface AttributeConfig {
  * Fetch attribute configuration from database
  */
 export async function getAttributeConfig(): Promise<AttributeConfig> {
-    const [staffConfig, organizerConfig, operationGuildConfig, targetGuildConfig] = await Promise.all([
+    const [staffConfig, organizerConfig, targetGuildConfig] = await Promise.all([
         prisma.systemConfig.findUnique({ where: { key: "staff_role_ids" } }),
         prisma.systemConfig.findUnique({ where: { key: "organizer_role_ids" } }),
-        prisma.systemConfig.findUnique({ where: { key: "operation_guild_id" } }),
         prisma.systemConfig.findUnique({ where: { key: "target_guild_ids" } }),
     ]);
 
     return {
         staffRoleIds: staffConfig?.value.split(",").map((id) => id.trim()).filter(Boolean) || [],
         organizerRoleIds: organizerConfig?.value.split(",").map((id) => id.trim()).filter(Boolean) || [],
-        operationGuildId: operationGuildConfig?.value || null,
         targetGuildIds: targetGuildConfig?.value.split(",").map((id) => id.trim()).filter(Boolean) || [],
     };
 }
@@ -44,9 +41,14 @@ export function determineAttribute(
 
 /**
  * Check if a guild is the operation server
+ * Queries the Guild table directly since /setup operation-server updates the Guild model
  */
-export function isOperationServer(guildId: string, config: AttributeConfig): boolean {
-    return config.operationGuildId === guildId;
+export async function isOperationServer(guildId: string): Promise<boolean> {
+    const guild = await prisma.guild.findUnique({
+        where: { guildId },
+        select: { isOperationServer: true },
+    });
+    return guild?.isOperationServer ?? false;
 }
 
 /**

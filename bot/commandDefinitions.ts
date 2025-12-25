@@ -23,7 +23,6 @@ const configKeyChoices = [
     { name: "事務局員ロールID", value: "staff_role_ids" },
     { name: "会議フロントロールID", value: "organizer_role_ids" },
     { name: "bot管理者ロールID", value: "admin_role_ids" },
-    { name: "運営サーバーID", value: "operation_guild_id" },
     { name: "会議サーバーID", value: "target_guild_ids" },
 ] as const;
 
