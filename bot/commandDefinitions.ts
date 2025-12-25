@@ -132,6 +132,55 @@ const systemCommand = new SlashCommandBuilder()
     );
 
 /**
+ * /setup command definition (initial configuration)
+ */
+const setupCommand = new SlashCommandBuilder()
+    .setName("setup")
+    .setDescription("初期設定 (管理者未設定時は誰でも実行可)")
+    .addSubcommand((sub) =>
+        sub
+            .setName("target-guild")
+            .setDescription("このサーバーを対象ギルドとして設定")
+            .addBooleanOption((opt) =>
+                opt.setName("enable").setDescription("有効/無効").setRequired(true)
+            )
+    )
+    .addSubcommand((sub) =>
+        sub
+            .setName("operation-server")
+            .setDescription("このサーバーを運営サーバーとして設定")
+            .addBooleanOption((opt) =>
+                opt.setName("enable").setDescription("有効/無効").setRequired(true)
+            )
+    )
+    .addSubcommand((sub) =>
+        sub
+            .setName("admin-roles")
+            .setDescription("管理者ロールを設定")
+            .addStringOption((opt) =>
+                opt
+                    .setName("roles")
+                    .setDescription("ロールID (カンマ区切りで複数指定可)")
+                    .setRequired(true)
+            )
+    )
+    .addSubcommand((sub) =>
+        sub
+            .setName("staff-roles")
+            .setDescription("スタッフロールを設定")
+            .addStringOption((opt) =>
+                opt
+                    .setName("roles")
+                    .setDescription("ロールID (カンマ区切りで複数指定可)")
+                    .setRequired(true)
+            )
+    )
+    .addSubcommand((sub) =>
+        sub.setName("status").setDescription("現在のサーバー設定を表示")
+    );
+
+/**
  * All slash commands for registration
  */
-export const commands = [attendanceCommand, systemCommand];
+export const commands = [attendanceCommand, systemCommand, setupCommand];
+

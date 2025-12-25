@@ -13,7 +13,7 @@
 import { Client, GatewayIntentBits, REST, Routes } from "discord.js";
 import { config } from "dotenv";
 import { commands } from "./commandDefinitions";
-import { handleAttendance, handleSystem, handleSystemButton } from "./commands";
+import { handleAttendance, handleSystem, handleSystemButton, handleSetup } from "./commands";
 import { handleMemberAdd, handleMemberRemove, handleMemberUpdate } from "./events";
 import { syncAllGuilds } from "./services";
 import logger from "./utils/discordLogger";
@@ -81,6 +81,9 @@ client.on("interactionCreate", async (interaction) => {
                 break;
             case "system":
                 await handleSystem(interaction, client);
+                break;
+            case "setup":
+                await handleSetup(interaction);
                 break;
         }
     } catch (error) {
