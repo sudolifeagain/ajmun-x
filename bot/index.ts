@@ -13,7 +13,7 @@
 import { Client, GatewayIntentBits, REST, Routes } from "discord.js";
 import { config } from "dotenv";
 import { commands } from "./commandDefinitions";
-import { handleAttendance, handleSystem, handleSystemButton, handleSetup, handleHelp, handleHelpSelect } from "./commands";
+import { handleAttendance, handleAttendanceAutocomplete, handleSystem, handleSystemButton, handleSetup, handleHelp, handleHelpSelect } from "./commands";
 import { handleMemberAdd, handleMemberRemove, handleMemberUpdate } from "./events";
 import { syncAllGuilds } from "./services";
 import logger from "./utils/discordLogger";
@@ -82,6 +82,18 @@ client.on("interactionCreate", async (interaction) => {
         } catch (error) {
             console.error("Select menu error:", error);
             await interaction.reply({ content: "❌ エラーが発生しました。", ephemeral: true });
+        }
+        return;
+    }
+
+    // Handle autocomplete interactions
+    if (interaction.isAutocomplete()) {
+        try {
+            if (interaction.commandName === "attendance") {
+                await handleAttendanceAutocomplete(interaction);
+            }
+        } catch (error) {
+            console.error("Autocomplete handling error:", error);
         }
         return;
     }

@@ -42,6 +42,7 @@ const attendanceCommand = new SlashCommandBuilder()
                     .setName("conference")
                     .setDescription("会議名 (all で全会議)")
                     .setRequired(false)
+                    .setAutocomplete(true)
             )
             .addStringOption((opt) =>
                 opt
@@ -60,6 +61,7 @@ const attendanceCommand = new SlashCommandBuilder()
                     .setName("conference")
                     .setDescription("会議名 (all で全会議)")
                     .setRequired(false)
+                    .setAutocomplete(true)
             )
             .addStringOption((opt) =>
                 opt
@@ -78,6 +80,7 @@ const attendanceCommand = new SlashCommandBuilder()
                     .setName("conference")
                     .setDescription("会議名 (all で全会議)")
                     .setRequired(false)
+                    .setAutocomplete(true)
             )
             .addStringOption((opt) =>
                 opt

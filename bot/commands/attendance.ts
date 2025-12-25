@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, EmbedBuilder } from "discord.js";
+import { ChatInputCommandInteraction, AutocompleteInteraction, EmbedBuilder } from "discord.js";
 import { prisma, getTodayJST, getAttributeLabel } from "../utils";
 import { getOrganizerGuildIds } from "../services";
 
@@ -276,5 +276,47 @@ export async function handleAttendance(interaction: ChatInputCommandInteraction)
         case "absent":
             await handleAbsent(interaction, organizerGuildIds);
             break;
+    }
+}
+
+/**
+ * Handle autocomplete for attendance command
+ */
+export async function handleAttendanceAutocomplete(interaction: AutocompleteInteraction): Promise<void> {
+    const focusedOption = interaction.options.getFocused(true);
+
+    if (focusedOption.name === "conference") {
+        const organizerGuildIds = await getOrganizerGuildIds(interaction.user.id);
+
+        // If null, user has no permission at all
+        if (organizerGuildIds === null) {
+            await interaction.respond([]);
+            return;
+        }
+
+        const searchText = focusedOption.value;
+        const whereClause: any = {
+            isTargetGuild: true,
+            guildName: { contains: searchText },
+        };
+
+        // If not empty array (admin/staff), restrict to specific guilds
+        if (organizerGuildIds.length > 0) {
+            whereClause.guildId = { in: organizerGuildIds };
+        }
+
+        try {
+            const guilds = await prisma.guild.findMany({
+                where: whereClause,
+                take: 25, // Discord limits to 25 choices
+            });
+
+            await interaction.respond(
+                guilds.map((g) => ({ name: g.guildName, value: g.guildName }))
+            );
+        } catch (error) {
+            console.error("Autocomplete error:", error);
+            await interaction.respond([]);
+        }
     }
 }
