@@ -12,7 +12,7 @@ import { generateQrToken, isValidQrTokenFormat } from "../../app/lib/qrToken";
 // Rate limiting configuration
 const RATE_LIMIT = {
     batchSize: 10,      // Number of DMs to send per batch
-    delayMs: 1100,      // Delay between batches (slightly over 1s to be safe)
+    delayMs: 2000,      // Delay between batches (2s safe margin)
 };
 
 export interface SendResult {
