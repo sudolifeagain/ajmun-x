@@ -231,12 +231,14 @@ const setupCommand = new SlashCommandBuilder()
                     .setName("roles")
                     .setDescription("ロールID (カンマ区切りで複数指定可)")
                     .setRequired(true)
+                    .setAutocomplete(true)
             )
             .addStringOption((opt) =>
                 opt
                     .setName("guild_ids")
                     .setDescription("対象サーバーID (カンマ区切り、省略時は全サーバー)")
                     .setRequired(false)
+                    .setAutocomplete(true)
             )
     )
     .addSubcommand((sub) =>

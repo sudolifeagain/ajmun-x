@@ -8,6 +8,7 @@
 
 import {
     ChatInputCommandInteraction,
+    AutocompleteInteraction,
     EmbedBuilder,
     MessageFlags,
 } from "discord.js";
@@ -349,5 +350,60 @@ export async function handleSetup(
         case "status":
             await handleStatus(interaction);
             break;
+    }
+}
+
+/**
+ * Handle autocomplete for setup command
+ */
+export async function handleSetupAutocomplete(interaction: AutocompleteInteraction): Promise<void> {
+    const focused = interaction.options.getFocused(true);
+    const subcommand = interaction.options.getSubcommand();
+
+    if (subcommand !== "organizer-roles") {
+        return;
+    }
+
+    const inputValue = focused.value.toLowerCase();
+
+    if (focused.name === "roles") {
+        // Suggest roles from the current guild
+        const guild = interaction.guild;
+        if (!guild) {
+            await interaction.respond([]);
+            return;
+        }
+
+        const roles = guild.roles.cache
+            .filter(role =>
+                role.name !== "@everyone" &&
+                (role.name.toLowerCase().includes(inputValue) || role.id.includes(inputValue))
+            )
+            .map(role => ({
+                name: `@${role.name} (${role.id})`,
+                value: role.id,
+            }))
+            .slice(0, 25);
+
+        await interaction.respond(roles);
+    } else if (focused.name === "guild_ids") {
+        // Suggest target guilds from database
+        const guilds = await prisma.guild.findMany({
+            where: { isTargetGuild: true },
+            select: { guildId: true, guildName: true },
+        });
+
+        const filtered = guilds
+            .filter(g =>
+                g.guildName.toLowerCase().includes(inputValue) ||
+                g.guildId.includes(inputValue)
+            )
+            .map(g => ({
+                name: `${g.guildName} (${g.guildId})`,
+                value: g.guildId,
+            }))
+            .slice(0, 25);
+
+        await interaction.respond(filtered);
     }
 }

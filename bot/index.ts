@@ -13,7 +13,7 @@
 import { Client, GatewayIntentBits, REST, Routes } from "discord.js";
 import { config } from "dotenv";
 import { commands } from "./commandDefinitions";
-import { handleAttendance, handleAttendanceAutocomplete, handleSystem, handleSystemButton, handleSetup, handleHelp, handleHelpSelect } from "./commands";
+import { handleAttendance, handleAttendanceAutocomplete, handleSystem, handleSystemButton, handleSetup, handleSetupAutocomplete, handleHelp, handleHelpSelect } from "./commands";
 import { handleMemberAdd, handleMemberRemove, handleMemberUpdate } from "./events";
 import { syncAllGuilds } from "./services";
 import logger from "./utils/discordLogger";
@@ -91,6 +91,8 @@ client.on("interactionCreate", async (interaction) => {
         try {
             if (interaction.commandName === "attendance") {
                 await handleAttendanceAutocomplete(interaction);
+            } else if (interaction.commandName === "setup") {
+                await handleSetupAutocomplete(interaction);
             }
         } catch (error) {
             console.error("Autocomplete handling error:", error);
