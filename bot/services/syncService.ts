@@ -1,6 +1,6 @@
 import { Guild } from "discord.js";
 import { prisma, generateDefaultColor } from "../utils";
-import { getAttributeConfig, determineAttribute, isOperationServer, isTargetGuild } from "./attributeService";
+import { getAttributeConfig, determineAttribute, isTargetGuild } from "./attributeService";
 
 /**
  * Sync a single guild's members to the database
@@ -11,24 +11,31 @@ export async function syncGuildMembers(guild: Guild): Promise<number> {
         : null;
 
     const config = await getAttributeConfig();
-    const isOpServer = await isOperationServer(guild.id);
-    const isTarget = isTargetGuild(guild.id, config);
 
-    // Upsert guild (preserve existing isOperationServer flag, don't overwrite from config)
+    // Check if guild already exists with isTargetGuild set
+    const existingGuild = await prisma.guild.findUnique({
+        where: { guildId: guild.id },
+        select: { isTargetGuild: true },
+    });
+
+    // Only calculate isTargetGuild for new guilds
+    // Existing guilds preserve their setting (set by /setup command)
+    const isTargetForNew = isTargetGuild(guild.id, config);
+
+    // Upsert guild (preserve existing isTargetGuild and isOperationServer flags)
     await prisma.guild.upsert({
         where: { guildId: guild.id },
         update: {
             guildName: guild.name,
             guildIconUrl: guildIconUrl,
-            isTargetGuild: isTarget,
-            // Note: We don't overwrite isOperationServer here - it's set by /setup command
+            // Note: We don't overwrite isTargetGuild or isOperationServer here - they're set by /setup command
         },
         create: {
             guildId: guild.id,
             guildName: guild.name,
             guildIconUrl: guildIconUrl,
             defaultColor: generateDefaultColor(guild.id),
-            isTargetGuild: isTarget,
+            isTargetGuild: isTargetForNew,
             isOperationServer: false,
         },
     });
