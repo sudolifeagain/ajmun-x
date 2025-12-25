@@ -147,60 +147,79 @@ npm run bot
 
 #### 概要
 
-1. **運営サーバー**にBotを招待
-2. **会議サーバー**にBotを招待（複数）
-3. システム設定を登録
+1. **運営サーバー**にBotを招待し、設定
+2. **会議サーバー**にBotを招待し、設定（複数可）
+3. 必要に応じてメンバー同期
 
-#### STEP 1: Botを運営サーバーに招待
+---
 
-運営サーバー（スタッフ全員が所属するサーバー）にBotを招待。
+#### STEP 1: 運営サーバーの設定
 
-#### STEP 2: Botを会議サーバーに招待
+運営サーバー（スタッフ全員が所属するサーバー）で以下を実行：
 
-各会議サーバー（参加者が所属するサーバー）にBotを招待。
+```
+/setup operation-server enable:true   # 運営サーバーとして登録
+/setup admin-roles roles:<ロールID>   # Bot管理者を設定（以降は管理者のみ/setup実行可能）
+/setup staff-roles roles:<ロールID>   # 事務局員ロールを設定
+/setup organizer-roles roles:<ロールID>  # 会議フロントロールを設定（複数追加可能）
+```
 
-#### STEP 3: メンバー同期
+#### STEP 2: 会議サーバーの設定
 
-Discordで実行（初回は権限不要）：
+各会議サーバーで以下を実行：
+
+```
+/setup target-guild enable:true       # 出席管理対象として登録
+```
+
+**または**、運営サーバーからリモート設定：
+
+```
+/setup target-guild enable:true guild_id:<会議サーバーID>
+```
+
+#### STEP 3: メンバー同期（オプション）
+
+Bot起動時に自動同期されますが、即時反映したい場合：
+
 ```
 /system sync
 ```
 
-#### STEP 4: 管理者設定
+---
 
-SQLiteに直接登録（初回のみ）：
-```bash
-sqlite3 prisma/dev.db "INSERT INTO SystemConfig (key, value, description) VALUES ('admin_role_ids', '管理者ロールID', '管理者ロール');"
+#### 自動処理（コマンド不要）
+
+| イベント | 自動処理 |
+|---------|---------|
+| **Bot起動時** | 全サーバーのメンバーを自動同期 |
+| **メンバー参加** | 新メンバーを自動登録、属性を自動判定 |
+| **ロール変更** | 属性（staff/organizer/participant）を自動再計算 |
+| **メンバー脱退** | メンバーシップを削除（ユーザー自体は残る） |
+
+---
+
+#### 属性判定ロジック
+
+ユーザーの**全ギルドのロール**を集約して判定：
+
+```
+staff_role_ids に一致 → "staff"（事務局員）
+organizer_role_ids に一致 → "organizer"（会議フロント）
+どちらでもない → "participant"（参加者）
 ```
 
-#### STEP 5: サーバー設定
+> 💡 会議サーバーAで会議フロントロールを持っていれば、そのユーザーは全体で「organizer」として認識されます。
 
-現在は `/setup` コマンドで設定します（[1.5 初期設定](#15-初期設定setup-コマンド)参照）。
+---
 
-会議サーバーIDを手動設定する場合：
-```
-/system config target_guild_ids <会議A>,<会議B>,<会議C>,...
-```
+#### 設定確認コマンド
 
-#### STEP 6: 権限ロール設定
+| コマンド | 説明 |
+|---------|------|
+| `/setup status` | 現在のサーバーの設定状況（運営/会議/ロール） |
+| `/system show` | 全体のシステム設定（全サーバー一覧を含む） |
 
-```
-/system config staff_role_ids <スタッフロールID>
-/system config organizer_role_ids <会議フロントロールID>
-```
-
-#### 設定キー一覧
-
-| キー | 説明 | 例 |
-|-----|------|-----|
-| `target_guild_ids` | 会議サーバーのID（カンマ区切り）。出席管理対象 | `111,222,333` |
-| `admin_role_ids` | 管理者ロール/ユーザーID | ロールIDまたはユーザーID |
-| `staff_role_ids` | スタッフロール/ユーザーID | 同上 |
-| `organizer_role_ids` | 会議フロントロール/ユーザーID | 同上 |
-
-> 💡 **運営サーバー設定**: `/setup operation-server enable:true` を使用（`Guild`テーブルに保存）
-
-> 💡 `target_guild_ids` が**未設定**の場合は全サーバーが対象。**設定済み**の場合は指定サーバーのみが対象。
 
 ---
 
