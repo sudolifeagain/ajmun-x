@@ -52,8 +52,15 @@ async function handleStatus(
     allowedGuildIds: string[]
 ): Promise<void> {
     const conference = interaction.options.getString("conference");
-    const attribute = interaction.options.getString("attribute");
+    let attribute = interaction.options.getString("attribute");
     const today = getTodayJST();
+
+    // Warn and ignore staff filter when conference is specified
+    let staffFilterWarning = false;
+    if (conference && conference !== "all" && attribute === "staff") {
+        staffFilterWarning = true;
+        attribute = null;
+    }
 
     // For organizers, if no conference specified, force filter to their guilds
     const { guildId: targetGuildId, guildName, error } = await resolveConference(conference, allowedGuildIds);
@@ -105,7 +112,11 @@ async function handleStatus(
         embed.setFooter({ text: `対象: ${allowedGuildIds.length}サーバー` });
     }
 
-    await interaction.reply({ embeds: [embed], flags: MessageFlags.SuppressNotifications });
+    const warningMessage = staffFilterWarning
+        ? "⚠️ 会議を指定した場合、事務局員フィルタは無視されます。\n\n"
+        : "";
+
+    await interaction.reply({ content: warningMessage || undefined, embeds: [embed], flags: MessageFlags.SuppressNotifications });
 }
 
 /**
@@ -116,8 +127,15 @@ async function handlePresent(
     allowedGuildIds: string[]
 ): Promise<void> {
     const conference = interaction.options.getString("conference");
-    const attribute = interaction.options.getString("attribute");
+    let attribute = interaction.options.getString("attribute");
     const today = getTodayJST();
+
+    // Warn and ignore staff filter when conference is specified
+    let staffFilterWarning = false;
+    if (conference && conference !== "all" && attribute === "staff") {
+        staffFilterWarning = true;
+        attribute = null;
+    }
 
     const { guildId: targetGuildId, guildName, error } = await resolveConference(conference, allowedGuildIds);
     if (error) {
@@ -172,7 +190,11 @@ async function handlePresent(
     if (filterDesc) embed.setFooter({ text: remaining > 0 ? `${filterDesc} | 他 ${remaining}人` : filterDesc });
     else if (remaining > 0) embed.setFooter({ text: `他 ${remaining}人` });
 
-    await interaction.reply({ embeds: [embed], flags: MessageFlags.SuppressNotifications });
+    const warningMessage = staffFilterWarning
+        ? "⚠️ 会議を指定した場合、事務局員フィルタは無視されます。\n\n"
+        : "";
+
+    await interaction.reply({ content: warningMessage || undefined, embeds: [embed], flags: MessageFlags.SuppressNotifications });
 }
 
 /**
@@ -183,8 +205,15 @@ async function handleAbsent(
     allowedGuildIds: string[]
 ): Promise<void> {
     const conference = interaction.options.getString("conference");
-    const attribute = interaction.options.getString("attribute");
+    let attribute = interaction.options.getString("attribute");
     const today = getTodayJST();
+
+    // Warn and ignore staff filter when conference is specified
+    let staffFilterWarning = false;
+    if (conference && conference !== "all" && attribute === "staff") {
+        staffFilterWarning = true;
+        attribute = null;
+    }
 
     const { guildId: targetGuildId, guildName, error } = await resolveConference(conference, allowedGuildIds);
     if (error) {
@@ -243,7 +272,11 @@ async function handleAbsent(
     if (filterDesc) embed.setFooter({ text: remaining > 0 ? `${filterDesc} | 他 ${remaining}人` : filterDesc });
     else if (remaining > 0) embed.setFooter({ text: `他 ${remaining}人` });
 
-    await interaction.reply({ embeds: [embed], flags: MessageFlags.SuppressNotifications });
+    const warningMessage = staffFilterWarning
+        ? "⚠️ 会議を指定した場合、事務局員フィルタは無視されます。\n\n"
+        : "";
+
+    await interaction.reply({ content: warningMessage || undefined, embeds: [embed], flags: MessageFlags.SuppressNotifications });
 }
 
 /**
