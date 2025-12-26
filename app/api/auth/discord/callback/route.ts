@@ -118,21 +118,29 @@ export async function GET(request: NextRequest) {
             where: { discordUserId: discordUser.id },
         });
 
-        // Check for staff roles across all guilds
-        const staffConfig = await prisma.systemConfig.findUnique({
-            where: { key: "staff_role_ids" },
+        // Fetch staff and organizer role configs
+        const [staffConfig, organizerConfig] = await Promise.all([
+            prisma.systemConfig.findUnique({ where: { key: "staff_role_ids" } }),
+            prisma.systemConfig.findUnique({ where: { key: "organizer_role_ids" } }),
+        ]);
+
+        const staffRoleIds = staffConfig?.value.split(",").map((id) => id.trim()).filter(Boolean) || [];
+        const organizerRoleIds = organizerConfig?.value.split(",").map((id) => id.trim()).filter(Boolean) || [];
+
+        // Collect all user roles from all memberships
+        const allUserRoles = allMemberships.flatMap((m) => {
+            try {
+                return JSON.parse(m.roleIds || "[]") as string[];
+            } catch {
+                return [];
+            }
         });
 
-        if (staffConfig && allMemberships.length > 0) {
-            const staffRoleIds = staffConfig.value.split(",").map((id) => id.trim());
-
-            for (const m of allMemberships) {
-                const userRoles: string[] = JSON.parse(m.roleIds || "[]");
-                if (userRoles.some((roleId) => staffRoleIds.includes(roleId))) {
-                    primaryAttribute = "staff";
-                    break;
-                }
-            }
+        // Determine attribute: staff > organizer > participant
+        if (allUserRoles.some((roleId) => staffRoleIds.includes(roleId))) {
+            primaryAttribute = "staff";
+        } else if (allUserRoles.some((roleId) => organizerRoleIds.includes(roleId))) {
+            primaryAttribute = "organizer";
         }
 
         // Create or update user in database
