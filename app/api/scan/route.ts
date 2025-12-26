@@ -111,23 +111,84 @@ export async function POST(request: NextRequest): Promise<NextResponse<ScanRespo
             },
         });
 
-        const primaryGuildId =
-            user.guildMemberships[0]?.guildId || null;
-        const primaryGuildName = user.guildMemberships[0]?.guild.guildName || "未所属";
+        // Determine primary guild based on user's attribute (same logic as DM sending)
+        const memberships = user.guildMemberships;
+        const attribute = user.primaryAttribute;
+        let primaryGuildMembership = memberships[0]; // Default fallback
 
-        // Build response user data
+        if (attribute === "staff") {
+            // Staff: Prioritize operation server
+            const opServer = await prisma.guild.findFirst({
+                where: { isOperationServer: true },
+            });
+            if (opServer) {
+                // Find membership in operation server (might not be in target guilds query)
+                const opMembership = await prisma.userGuildMembership.findUnique({
+                    where: {
+                        discordUserId_guildId: {
+                            discordUserId: userId,
+                            guildId: opServer.guildId,
+                        },
+                    },
+                    include: { guild: true },
+                });
+                if (opMembership) {
+                    primaryGuildMembership = opMembership;
+                }
+            }
+        } else if (attribute === "organizer") {
+            // Organizer: Prioritize their mapped conference from OrganizerRoleMapping
+            const allRoleIds = memberships.flatMap((m) => {
+                try {
+                    return JSON.parse(m.roleIds) as string[];
+                } catch {
+                    return [];
+                }
+            });
+
+            const roleMapping = await prisma.organizerRoleMapping.findFirst({
+                where: {
+                    roleId: { in: allRoleIds },
+                },
+            });
+
+            if (roleMapping) {
+                const targetGuildIds = roleMapping.targetGuildIds.split(",").map((id: string) => id.trim());
+                const targetMembership = memberships.find((m) => targetGuildIds.includes(m.guildId));
+                if (targetMembership) {
+                    primaryGuildMembership = targetMembership;
+                }
+            } else {
+                // Fallback: use any target guild they're in
+                const targetGuild = memberships.find((m) => m.guild.isTargetGuild);
+                if (targetGuild) {
+                    primaryGuildMembership = targetGuild;
+                }
+            }
+        } else {
+            // Participant: They should only be in one target guild
+            const targetGuild = memberships.find((m) => m.guild.isTargetGuild);
+            if (targetGuild) {
+                primaryGuildMembership = targetGuild;
+            }
+        }
+
+        const primaryGuildId = primaryGuildMembership?.guildId || null;
+        const primaryGuildName = primaryGuildMembership?.guild.guildName || "未所属";
+
+        // Build response user data with single guild
         const responseUser = {
             discordUserId: user.discordUserId,
             globalName: user.globalName,
             avatarUrl: user.defaultAvatarUrl,
             attribute: user.primaryAttribute,
-            guilds: user.guildMemberships.map((m) => ({
-                guildId: m.guild.guildId,
-                guildName: m.guild.guildName,
-                guildIconUrl: m.guild.guildIconUrl,
-                defaultColor: m.guild.defaultColor,
-                nickname: m.nickname,
-            })),
+            guilds: primaryGuildMembership ? [{
+                guildId: primaryGuildMembership.guild.guildId,
+                guildName: primaryGuildMembership.guild.guildName,
+                guildIconUrl: primaryGuildMembership.guild.guildIconUrl,
+                defaultColor: primaryGuildMembership.guild.defaultColor,
+                nickname: primaryGuildMembership.nickname,
+            }] : [],
         };
 
         if (existingLog) {
