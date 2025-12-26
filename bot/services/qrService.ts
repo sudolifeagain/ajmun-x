@@ -109,14 +109,56 @@ export async function sendQRCodeDM(
             include: {
                 guildMemberships: {
                     include: { guild: true },
-                    where: { guild: { isTargetGuild: true } },
-                    take: 1,
                 },
             },
         });
 
         const displayName = dbUser?.globalName || discordUser.username;
-        const guildName = dbUser?.guildMemberships[0]?.guild.guildName || "";
+
+        // Determine guild name based on user's primary attribute
+        let guildName = "";
+        const memberships = dbUser?.guildMemberships || [];
+        const attribute = dbUser?.primaryAttribute || "participant";
+
+        if (attribute === "staff") {
+            // Staff: Prioritize operation server (運営サーバー)
+            const opServer = memberships.find(m => m.guild.isOperationServer);
+            guildName = opServer?.guild.guildName || "";
+        } else if (attribute === "organizer") {
+            // Organizer: Prioritize their mapped conference from OrganizerRoleMapping
+            // First, get all role IDs from their memberships
+            const allRoleIds = memberships.flatMap(m => {
+                try {
+                    return JSON.parse(m.roleIds) as string[];
+                } catch {
+                    return [];
+                }
+            });
+
+            // Find OrganizerRoleMapping for any of their roles
+            const roleMapping = await prisma.organizerRoleMapping.findFirst({
+                where: {
+                    roleId: { in: allRoleIds },
+                },
+            });
+
+            if (roleMapping) {
+                // Get the first target guild from the mapping
+                const targetGuildIds = roleMapping.targetGuildIds.split(",").map((id: string) => id.trim());
+                const targetGuild = memberships.find(m => targetGuildIds.includes(m.guildId));
+                guildName = targetGuild?.guild.guildName || "";
+            }
+
+            // Fallback: use any target guild they're in
+            if (!guildName) {
+                const targetGuild = memberships.find(m => m.guild.isTargetGuild);
+                guildName = targetGuild?.guild.guildName || "";
+            }
+        } else {
+            // Participant: They should only be in one target guild
+            const targetGuild = memberships.find(m => m.guild.isTargetGuild);
+            guildName = targetGuild?.guild.guildName || "";
+        }
 
         // Send DM
         try {
