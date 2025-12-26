@@ -13,6 +13,7 @@
 5. [Cloudflare 設定](#5-cloudflare-設定)
 6. [運用・トラブルシューティング](#6-運用トラブルシューティング)
 7. [セキュリティ強化](#7-セキュリティ強化)
+8. [データベースバックアップ](#8-データベースバックアップ)
 
 ---
 
@@ -684,6 +685,57 @@ sudo dpkg-reconfigure -plow unattended-upgrades
 3. **DMが届かない場合（例外対応）**
    - DM設定で受信拒否している場合などは、従来の **[Webログイン](https://ajmun37.re4lity.com/)** によるQR表示を案内してください。
    - ログインすれば同じQRコードが表示されます。
+
+---
+
+## 8. データベースバックアップ
+
+### 8.1 定期バックアップの設定
+
+日本時間23:00に毎日バックアップを実行する設定：
+
+```bash
+# バックアップ用ディレクトリ作成
+mkdir -p ~/ajmun-x/backups
+
+# crontab編集
+crontab -e
+```
+
+以下を追加（日本時間23:00 = UTC 14:00）：
+```cron
+0 14 * * * cp ~/ajmun-x/prisma/prod.db ~/ajmun-x/backups/prod_$(date +\%Y\%m\%d).db
+```
+
+### 8.2 バックアップ確認
+
+```bash
+ls -la ~/ajmun-x/backups/
+```
+
+### 8.3 ロールバック手順
+
+1. **Botを停止**
+   ```bash
+   pm2 stop ajmun-bot
+   ```
+
+2. **現在のDBをバックアップ**
+   ```bash
+   cp ~/ajmun-x/prisma/prod.db ~/ajmun-x/prisma/prod_before_rollback.db
+   ```
+
+3. **バックアップから復元**
+   ```bash
+   cp ~/ajmun-x/backups/prod_YYYYMMDD.db ~/ajmun-x/prisma/prod.db
+   ```
+
+4. **Botを再起動**
+   ```bash
+   pm2 start ajmun-bot
+   ```
+
+> **注意**: ロールバックすると、そのバックアップ以降の変更は失われます。
 
 ---
 
