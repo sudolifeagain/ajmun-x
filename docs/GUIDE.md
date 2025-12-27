@@ -240,14 +240,46 @@ organizer_role_ids に一致 → "organizer"（会議フロント）
 
 ### 3.3 Bot コマンド
 
+#### 基本コマンド
+
 | コマンド | 権限 |
 |---------|-----|
-| `/attendance status` | staff以上 |
-| `/attendance present/absent` | staff以上 |
+| `/attendance status` | organizer以上 |
+| `/attendance present` | organizer以上 |
+| `/attendance absent` | organizer以上 |
+| `/attendance checkin` | organizer以上 |
 | `/system sync` | 権限未設定時：誰でも / 設定後：staff以上 |
 | `/system show` | admin |
 | `/system config <key> <value>` | admin |
 | `/system delete <key>` | admin（確認ダイアログ付き） |
+| `/system send-qr` | admin |
+| `/system dm-status` | admin |
+| `/help` | 誰でも |
+
+#### 出席コマンドのフィルタオプション
+
+`/attendance status`、`/attendance present`、`/attendance absent` は以下のフィルタをサポート：
+
+| オプション | 説明 | 例 |
+|----------|------|-----|
+| `conference` | 会議（サーバー）で絞り込み | オートコンプリート対応 |
+| `attribute` | 属性で絞り込み | そのほか/会議フロント/事務局員 |
+| `date` | 日付で絞り込み | YYYY-MM-DD形式（省略時は本日） |
+
+**使用例:**
+
+```
+/attendance status                                      # 本日の全体状況
+/attendance status conference:会議A                      # 会議Aの今日の状況
+/attendance status attribute:staff                      # 事務局員の今日の状況
+/attendance present date:2025-12-25                     # 12/25の出席者一覧
+/attendance absent conference:会議B date:2025-12-26      # 会議Bの12/26未出席者
+/attendance checkin user:ユーザー名                       # 手動チェックイン
+```
+
+> 💡 `conference` を指定した場合、`attribute:staff` は無視されます（事務局員は運営サーバーに所属のため）
+
+> 💡 会議フロント（organizer）は自分の担当会議のみ表示可能です
 
 ---
 
