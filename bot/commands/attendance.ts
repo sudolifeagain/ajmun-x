@@ -1,6 +1,7 @@
 import { ChatInputCommandInteraction, AutocompleteInteraction, EmbedBuilder, MessageFlags } from "discord.js";
 import { prisma, getTodayJST, getAttributeLabel } from "../utils";
 import { getOrganizerGuildIds } from "../services";
+import logger from "../../app/lib/discordLogger";
 
 const MAX_DISPLAY = 100;
 
@@ -359,6 +360,13 @@ async function handleCheckin(
 
     const displayName = dbUser.globalName || targetUserId;
     const attrLabel = getAttributeLabel(dbUser.primaryAttribute);
+
+    // Log to webhook
+    await logger.info("手動チェックイン", {
+        discordUser: { id: targetUserId, name: displayName },
+        source: "Bot (attendance checkin)",
+        details: `属性: ${attrLabel}, サーバー: ${primaryGuildName}, 実行者: ${interaction.user.tag}`,
+    });
 
     const embed = new EmbedBuilder()
         .setTitle("✅ 手動チェックイン完了")
