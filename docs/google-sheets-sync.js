@@ -146,7 +146,8 @@ function syncAllAttendance() {
             const dailyAttendance = CONFIG.EVENT_DATES.map(date => {
                 const info = u.attendanceByDate[date];
                 if (info && info.attended) {
-                    return "✅";
+                    // 手動チェックインは📝、スキャンは✅
+                    return info.checkInMethod === "manual" ? "📝" : "✅";
                 }
                 return "";
             });

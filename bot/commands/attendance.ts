@@ -280,6 +280,86 @@ async function handleAbsent(
 }
 
 /**
+ * Handle /attendance checkin command
+ * Manually check-in a specific user
+ */
+async function handleCheckin(
+    interaction: ChatInputCommandInteraction
+): Promise<void> {
+    const targetUser = interaction.options.getUser("user", true);
+    const today = getTodayJST();
+
+    // Check if user exists in DB
+    const dbUser = await prisma.user.findUnique({
+        where: { discordUserId: targetUser.id },
+        include: {
+            guildMemberships: {
+                include: { guild: true },
+                where: { guild: { isTargetGuild: true } },
+                take: 1,
+            },
+        },
+    });
+
+    if (!dbUser) {
+        await interaction.reply({
+            content: `❌ <@${targetUser.id}> はデータベースに登録されていません。\n先に \`/system sync\` を実行してください。`,
+            ephemeral: true,
+        });
+        return;
+    }
+
+    // Check for existing attendance log today
+    const existingLog = await prisma.attendanceLog.findUnique({
+        where: {
+            discordUserId_checkInDate: {
+                discordUserId: targetUser.id,
+                checkInDate: today,
+            },
+        },
+    });
+
+    if (existingLog) {
+        const methodLabel = existingLog.checkInMethod === "manual" ? "手動" : "スキャン";
+        await interaction.reply({
+            content: `⚠️ <@${targetUser.id}> は本日既に出席済みです（${methodLabel}受付）`,
+            flags: MessageFlags.SuppressNotifications,
+        });
+        return;
+    }
+
+    const primaryGuildId = dbUser.guildMemberships[0]?.guildId || null;
+    const primaryGuildName = dbUser.guildMemberships[0]?.guild.guildName || "未所属";
+
+    // Create attendance log with manual method
+    await prisma.attendanceLog.create({
+        data: {
+            discordUserId: targetUser.id,
+            primaryGuildId: primaryGuildId,
+            attribute: dbUser.primaryAttribute,
+            checkInDate: today,
+            checkInMethod: "manual",
+        },
+    });
+
+    const displayName = dbUser.globalName || targetUser.username;
+    const attrLabel = getAttributeLabel(dbUser.primaryAttribute);
+
+    const embed = new EmbedBuilder()
+        .setTitle("✅ 手動チェックイン完了")
+        .setColor(0x22c55e)
+        .addFields(
+            { name: "ユーザー", value: `${displayName} (<@${targetUser.id}>)`, inline: true },
+            { name: "属性", value: attrLabel, inline: true },
+            { name: "会議", value: primaryGuildName, inline: true }
+        )
+        .setFooter({ text: "手動受付" })
+        .setTimestamp();
+
+    await interaction.reply({ embeds: [embed], flags: MessageFlags.SuppressNotifications });
+}
+
+/**
  * Handle /attendance command
  */
 export async function handleAttendance(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -308,6 +388,9 @@ export async function handleAttendance(interaction: ChatInputCommandInteraction)
             break;
         case "absent":
             await handleAbsent(interaction, organizerGuildIds);
+            break;
+        case "checkin":
+            await handleCheckin(interaction);
             break;
     }
 }

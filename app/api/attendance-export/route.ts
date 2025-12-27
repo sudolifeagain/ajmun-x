@@ -70,12 +70,15 @@ export async function GET(request: NextRequest) {
         });
 
         // Group attendance by user and date
-        const attendanceMap = new Map<string, Map<string, Date | null>>();
+        const attendanceMap = new Map<string, Map<string, { timestamp: Date | null; method: string }>>();
         for (const log of attendanceLogs) {
             if (!attendanceMap.has(log.discordUserId)) {
                 attendanceMap.set(log.discordUserId, new Map());
             }
-            attendanceMap.get(log.discordUserId)!.set(log.checkInDate, log.checkInTimestamp);
+            attendanceMap.get(log.discordUserId)!.set(log.checkInDate, {
+                timestamp: log.checkInTimestamp,
+                method: log.checkInMethod || "scan",
+            });
         }
 
         // Get all members with their guild memberships
@@ -110,12 +113,13 @@ export async function GET(request: NextRequest) {
                 .map(log => log.sentAt!.toISOString());
 
             // Build attendance by date object
-            const attendanceByDate: Record<string, { attended: boolean; checkInTimestamp: string | null }> = {};
+            const attendanceByDate: Record<string, { attended: boolean; checkInTimestamp: string | null; checkInMethod: string | null }> = {};
             for (const date of dates) {
-                const timestamp = userAttendance?.get(date);
+                const entry = userAttendance?.get(date);
                 attendanceByDate[date] = {
-                    attended: !!timestamp,
-                    checkInTimestamp: timestamp?.toISOString() || null,
+                    attended: !!entry,
+                    checkInTimestamp: entry?.timestamp?.toISOString() || null,
+                    checkInMethod: entry?.method || null,
                 };
             }
 

@@ -212,6 +212,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ScanRespo
                 primaryGuildId: primaryGuildId,
                 attribute: user.primaryAttribute,
                 checkInDate: today,
+                checkInMethod: "scan",
             },
         });
 

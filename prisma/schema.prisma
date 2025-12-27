@@ -65,6 +65,7 @@ model AttendanceLog {
   attribute        String   // participant, organizer, staff
   checkInDate      String   // YYYY-MM-DD format
   checkInTimestamp DateTime @default(now())
+  checkInMethod    String   @default("scan") // "scan" | "manual"
 
   user             User     @relation(fields: [discordUserId], references: [discordUserId], onDelete: Cascade)
   guild            Guild?   @relation(fields: [primaryGuildId], references: [guildId], onDelete: Cascade)

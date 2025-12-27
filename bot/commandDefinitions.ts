@@ -88,6 +88,17 @@ const attendanceCommand = new SlashCommandBuilder()
                     .setRequired(false)
                     .addChoices(...attributeChoices)
             )
+    )
+    .addSubcommand((sub) =>
+        sub
+            .setName("checkin")
+            .setDescription("特定ユーザーを手動で出席扱いにする")
+            .addUserOption((opt) =>
+                opt
+                    .setName("user")
+                    .setDescription("出席扱いにするユーザー")
+                    .setRequired(true)
+            )
     );
 
 /**
