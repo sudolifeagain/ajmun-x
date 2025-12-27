@@ -5,7 +5,7 @@
  * Separated from index.ts for better maintainability.
  */
 
-import { SlashCommandBuilder } from "discord.js";
+import { SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
 
 /**
  * Attribute choices used in attendance commands
@@ -27,67 +27,53 @@ const configKeyChoices = [
 ] as const;
 
 /**
+ * Add common filter options (conference, attribute, date) to a subcommand
+ * DRY helper to avoid repeating the same options across subcommands
+ */
+function addAttendanceFilterOptions(sub: SlashCommandSubcommandBuilder): SlashCommandSubcommandBuilder {
+    return sub
+        .addStringOption((opt) =>
+            opt
+                .setName("conference")
+                .setDescription("会議名 (all で全会議)")
+                .setRequired(false)
+                .setAutocomplete(true)
+        )
+        .addStringOption((opt) =>
+            opt
+                .setName("attribute")
+                .setDescription("属性で絞り込み")
+                .setRequired(false)
+                .addChoices(...attributeChoices)
+        )
+        .addStringOption((opt) =>
+            opt
+                .setName("date")
+                .setDescription("検索日 (YYYY-MM-DD形式、省略時は本日)")
+                .setRequired(false)
+        );
+}
+
+/**
  * /attendance command definition
  */
 const attendanceCommand = new SlashCommandBuilder()
     .setName("attendance")
     .setDescription("出席状況を確認")
     .addSubcommand((sub) =>
-        sub
-            .setName("status")
-            .setDescription("出席状況サマリーを表示")
-            .addStringOption((opt) =>
-                opt
-                    .setName("conference")
-                    .setDescription("会議名 (all で全会議)")
-                    .setRequired(false)
-                    .setAutocomplete(true)
-            )
-            .addStringOption((opt) =>
-                opt
-                    .setName("attribute")
-                    .setDescription("属性で絞り込み")
-                    .setRequired(false)
-                    .addChoices(...attributeChoices)
-            )
+        addAttendanceFilterOptions(
+            sub.setName("status").setDescription("出席状況サマリーを表示")
+        )
     )
     .addSubcommand((sub) =>
-        sub
-            .setName("present")
-            .setDescription("本日出席済みユーザー一覧")
-            .addStringOption((opt) =>
-                opt
-                    .setName("conference")
-                    .setDescription("会議名 (all で全会議)")
-                    .setRequired(false)
-                    .setAutocomplete(true)
-            )
-            .addStringOption((opt) =>
-                opt
-                    .setName("attribute")
-                    .setDescription("属性で絞り込み")
-                    .setRequired(false)
-                    .addChoices(...attributeChoices)
-            )
+        addAttendanceFilterOptions(
+            sub.setName("present").setDescription("出席済みユーザー一覧")
+        )
     )
     .addSubcommand((sub) =>
-        sub
-            .setName("absent")
-            .setDescription("本日未出席ユーザー一覧")
-            .addStringOption((opt) =>
-                opt
-                    .setName("conference")
-                    .setDescription("会議名 (all で全会議)")
-                    .setRequired(false)
-                    .setAutocomplete(true)
-            )
-            .addStringOption((opt) =>
-                opt
-                    .setName("attribute")
-                    .setDescription("属性で絞り込み")
-                    .setRequired(false)
-                    .addChoices(...attributeChoices)
-            )
+        addAttendanceFilterOptions(
+            sub.setName("absent").setDescription("未出席ユーザー一覧")
+        )
     )
     .addSubcommand((sub) =>
         sub

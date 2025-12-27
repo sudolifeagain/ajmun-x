@@ -1,5 +1,6 @@
 import { ChatInputCommandInteraction, AutocompleteInteraction, EmbedBuilder, MessageFlags } from "discord.js";
 import { prisma, getTodayJST, getAttributeLabel } from "../utils";
+import { isValidDateString } from "../../lib/shared/date";
 import { getOrganizerGuildIds } from "../services";
 import logger from "../../app/lib/discordLogger";
 import {
@@ -36,6 +37,7 @@ interface FilterOptions {
     staffFilterWarning: boolean;
     guildFilter: string[] | null;
     guildName: string | null;
+    targetDate: string;
 }
 
 // ============================================================================
@@ -89,6 +91,19 @@ async function parseFilterOptions(
 ): Promise<{ options: FilterOptions; error?: string }> {
     const conference = interaction.options.getString("conference");
     let attribute = interaction.options.getString("attribute");
+    const dateInput = interaction.options.getString("date");
+
+    // Validate and parse date option (default to today)
+    let targetDate = getTodayJST();
+    if (dateInput) {
+        if (!isValidDateString(dateInput)) {
+            return {
+                options: { attribute: null, staffFilterWarning: false, guildFilter: null, guildName: null, targetDate: "" },
+                error: `無効な日付形式です: ${dateInput}\nYYYY-MM-DD形式で入力してください（例: 2025-12-28）`,
+            };
+        }
+        targetDate = dateInput;
+    }
 
     // Warn and ignore staff filter when conference is specified
     let staffFilterWarning = false;
@@ -99,7 +114,10 @@ async function parseFilterOptions(
 
     const { guildId: targetGuildId, guildName, error } = await resolveConference(conference, allowedGuildIds);
     if (error) {
-        return { options: { attribute: null, staffFilterWarning: false, guildFilter: null, guildName: null }, error };
+        return {
+            options: { attribute: null, staffFilterWarning: false, guildFilter: null, guildName: null, targetDate: "" },
+            error,
+        };
     }
 
     // Build guild filter
@@ -110,7 +128,7 @@ async function parseFilterOptions(
         guildFilter = allowedGuildIds;
     }
 
-    return { options: { attribute, staffFilterWarning, guildFilter, guildName } };
+    return { options: { attribute, staffFilterWarning, guildFilter, guildName, targetDate } };
 }
 
 /**
@@ -144,30 +162,31 @@ async function handleStatus(
     interaction: ChatInputCommandInteraction,
     allowedGuildIds: string[]
 ): Promise<void> {
-    const today = getTodayJST();
-
     const { options, error } = await parseFilterOptions(interaction, allowedGuildIds);
     if (error) {
         await interaction.reply({ content: `❌ ${error}`, ephemeral: true });
         return;
     }
 
-    const { attribute, staffFilterWarning, guildFilter, guildName } = options;
+    const { attribute, staffFilterWarning, guildFilter, guildName, targetDate } = options;
+    const today = getTodayJST();
+    const isToday = targetDate === today;
 
     // Use repository for attendance summary
     const summary = await getAttendanceSummary({
-        date: today,
+        date: targetDate,
         attribute: attribute || undefined,
         guildIds: guildFilter || undefined,
     });
 
+    const titleSuffix = isToday ? "" : ` (${targetDate})`;
     const embed = new EmbedBuilder()
-        .setTitle("📊 出席状況")
+        .setTitle(`📊 出席状況${titleSuffix}`)
         .setColor(0x5865f2)
         .addFields(
             { name: "出席者数", value: `${summary.present}人`, inline: true },
             { name: "未出席者数", value: `${summary.absent}人`, inline: true },
-            { name: "対象日", value: today, inline: false }
+            { name: "対象日", value: targetDate, inline: false }
         )
         .setTimestamp();
 
@@ -184,25 +203,25 @@ async function handleStatus(
 
 /**
  * Handle /attendance present command
- * Shows list of users who checked in today
+ * Shows list of users who checked in on specified date
  */
 async function handlePresent(
     interaction: ChatInputCommandInteraction,
     allowedGuildIds: string[]
 ): Promise<void> {
-    const today = getTodayJST();
-
     const { options, error } = await parseFilterOptions(interaction, allowedGuildIds);
     if (error) {
         await interaction.reply({ content: `❌ ${error}`, ephemeral: true });
         return;
     }
 
-    const { attribute, staffFilterWarning, guildFilter, guildName } = options;
+    const { attribute, staffFilterWarning, guildFilter, guildName, targetDate } = options;
+    const today = getTodayJST();
+    const isToday = targetDate === today;
 
     const logs = await prisma.attendanceLog.findMany({
         where: {
-            checkInDate: today,
+            checkInDate: targetDate,
             ...(attribute && { attribute }),
             ...(guildFilter && { primaryGuildId: { in: guildFilter } }),
         },
@@ -228,11 +247,12 @@ async function handlePresent(
     const remaining = allUsers.length - displayUsers.length;
     const userList = displayUsers.map((name) => `• ${name.replace(/_/g, "\\_")}`).join("\n");
 
+    const titleSuffix = isToday ? "" : ` (${targetDate})`;
     const embed = new EmbedBuilder()
-        .setTitle("✅ 本日出席済み")
+        .setTitle(`✅ 出席済み${titleSuffix}`)
         .setColor(0x22c55e)
         .setDescription(userList || "まだ誰も出席していません")
-        .addFields({ name: "対象日", value: today })
+        .addFields({ name: "対象日", value: targetDate })
         .setTimestamp();
 
     const filterDesc = buildFilterDescription(guildName, attribute);
@@ -246,25 +266,25 @@ async function handlePresent(
 
 /**
  * Handle /attendance absent command
- * Shows list of users who have not checked in today
+ * Shows list of users who have not checked in on specified date
  */
 async function handleAbsent(
     interaction: ChatInputCommandInteraction,
     allowedGuildIds: string[]
 ): Promise<void> {
-    const today = getTodayJST();
-
     const { options, error } = await parseFilterOptions(interaction, allowedGuildIds);
     if (error) {
         await interaction.reply({ content: `❌ ${error}`, ephemeral: true });
         return;
     }
 
-    const { attribute, staffFilterWarning, guildFilter, guildName } = options;
+    const { attribute, staffFilterWarning, guildFilter, guildName, targetDate } = options;
+    const today = getTodayJST();
+    const isToday = targetDate === today;
 
     const presentUserIds = (
         await prisma.attendanceLog.findMany({
-            where: { checkInDate: today },
+            where: { checkInDate: targetDate },
             select: { discordUserId: true },
         })
     ).map((log) => log.discordUserId);
@@ -294,11 +314,12 @@ async function handleAbsent(
     const remaining = allUsers.length - displayUsers.length;
     const userList = displayUsers.map((name) => `• ${name.replace(/_/g, "\\_")}`).join("\n");
 
+    const titleSuffix = isToday ? "" : ` (${targetDate})`;
     const embed = new EmbedBuilder()
-        .setTitle("❌ 本日未出席")
+        .setTitle(`❌ 未出席${titleSuffix}`)
         .setColor(0xef4444)
         .setDescription(userList || "全員出席済みです")
-        .addFields({ name: "対象日", value: today })
+        .addFields({ name: "対象日", value: targetDate })
         .setTimestamp();
 
     const filterDesc = buildFilterDescription(guildName, attribute);
