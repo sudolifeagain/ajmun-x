@@ -2,7 +2,13 @@ import { ChatInputCommandInteraction, AutocompleteInteraction, EmbedBuilder, Mes
 import { prisma, getTodayJST, getAttributeLabel } from "../utils";
 import { getOrganizerGuildIds } from "../services";
 import logger from "../../app/lib/discordLogger";
-
+import {
+    countAttendance,
+    getAttendanceSummary,
+    findAttendanceLog,
+    checkInUser,
+    type CheckInMethod,
+} from "../../app/lib/repositories/attendanceRepository";
 // ============================================================================
 // Constants
 // ============================================================================
@@ -148,31 +154,19 @@ async function handleStatus(
 
     const { attribute, staffFilterWarning, guildFilter, guildName } = options;
 
-    const presentCount = await prisma.attendanceLog.count({
-        where: {
-            checkInDate: today,
-            ...(attribute && { attribute }),
-            ...(guildFilter && { primaryGuildId: { in: guildFilter } }),
-        },
+    // Use repository for attendance summary
+    const summary = await getAttendanceSummary({
+        date: today,
+        attribute: attribute || undefined,
+        guildIds: guildFilter || undefined,
     });
-
-    const totalUsers = guildFilter
-        ? await prisma.userGuildMembership.count({
-            where: {
-                guildId: { in: guildFilter },
-                ...(attribute && { user: { primaryAttribute: attribute } }),
-            },
-        })
-        : await prisma.user.count(
-            attribute ? { where: { primaryAttribute: attribute } } : undefined
-        );
 
     const embed = new EmbedBuilder()
         .setTitle("📊 出席状況")
         .setColor(0x5865f2)
         .addFields(
-            { name: "出席者数", value: `${presentCount}人`, inline: true },
-            { name: "未出席者数", value: `${totalUsers - presentCount}人`, inline: true },
+            { name: "出席者数", value: `${summary.present}人`, inline: true },
+            { name: "未出席者数", value: `${summary.absent}人`, inline: true },
             { name: "対象日", value: today, inline: false }
         )
         .setTimestamp();
@@ -368,18 +362,11 @@ async function handleCheckin(
         }
     }
 
-    // Check for existing attendance log today
-    const existingLog = await prisma.attendanceLog.findUnique({
-        where: {
-            discordUserId_checkInDate: {
-                discordUserId: targetUserId,
-                checkInDate: today,
-            },
-        },
-    });
+    // Check for existing attendance log today using repository
+    const { exists: alreadyCheckedIn, method: existingMethod } = await findAttendanceLog(targetUserId, today);
 
-    if (existingLog) {
-        const methodLabel = (existingLog as any).checkInMethod === "manual" ? "手動" : "スキャン";
+    if (alreadyCheckedIn) {
+        const methodLabel = existingMethod === "manual" ? "手動" : "スキャン";
         await interaction.reply({
             content: `⚠️ <@${targetUserId}> は本日既に出席済みです（${methodLabel}受付）`,
             flags: MessageFlags.SuppressNotifications,
@@ -390,16 +377,8 @@ async function handleCheckin(
     const primaryGuildId = dbUser.guildMemberships[0]?.guildId || null;
     const primaryGuildName = dbUser.guildMemberships[0]?.guild.guildName || "未所属";
 
-    // Create attendance log with manual method
-    await prisma.attendanceLog.create({
-        data: {
-            discordUserId: targetUserId,
-            primaryGuildId: primaryGuildId,
-            attribute: dbUser.primaryAttribute,
-            checkInDate: today,
-            checkInMethod: "manual",
-        } as any,
-    });
+    // Create attendance log using repository
+    await checkInUser(targetUserId, primaryGuildId, dbUser.primaryAttribute, "manual");
 
     const displayName = dbUser.globalName || targetUserId;
     const attrLabel = getAttributeLabel(dbUser.primaryAttribute);

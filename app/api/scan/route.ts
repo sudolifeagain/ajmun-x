@@ -4,63 +4,8 @@ import { verifyQrToken } from "@/app/lib/session";
 import logger from "@/app/lib/discordLogger";
 import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from "@/app/lib/rateLimit";
 import { getTodayJST } from "@/app/lib/date";
-
-// Types for guild resolution (inline to avoid circular dependency)
-interface GuildMembershipInfo {
-    guildId: string;
-    guildName: string;
-    isTargetGuild: boolean;
-    isOperationServer: boolean;
-    roleIds: string;
-}
-
-interface PrimaryGuildResult {
-    guildId: string | null;
-    guildName: string;
-}
-
-/**
- * Resolve primary guild for a user based on their attribute
- * (Inline implementation to avoid bot/app circular dependency)
- */
-async function resolvePrimaryGuild(
-    memberships: GuildMembershipInfo[],
-    attribute: string
-): Promise<PrimaryGuildResult> {
-    if (attribute === "staff") {
-        const opServer = memberships.find((m) => m.isOperationServer);
-        if (opServer) {
-            return { guildId: opServer.guildId, guildName: opServer.guildName };
-        }
-    } else if (attribute === "organizer") {
-        const allRoleIds = memberships.flatMap((m) => {
-            try {
-                return JSON.parse(m.roleIds) as string[];
-            } catch {
-                return [];
-            }
-        });
-
-        const roleMapping = await (prisma as any).organizerRoleMapping?.findFirst({
-            where: { roleId: { in: allRoleIds } },
-        });
-
-        if (roleMapping) {
-            const targetGuildIds = roleMapping.targetGuildIds.split(",").map((id: string) => id.trim());
-            const targetMembership = memberships.find((m) => targetGuildIds.includes(m.guildId));
-            if (targetMembership) {
-                return { guildId: targetMembership.guildId, guildName: targetMembership.guildName };
-            }
-        }
-    }
-
-    // Default: use any target guild
-    const targetGuild = memberships.find((m) => m.isTargetGuild);
-    return {
-        guildId: targetGuild?.guildId || null,
-        guildName: targetGuild?.guildName || "",
-    };
-}
+import { findAttendanceLog, checkInUser } from "@/app/lib/repositories/attendanceRepository";
+import { resolvePrimaryGuild, type GuildMembershipInfo } from "@/lib/shared/guildResolver";
 
 interface ScanRequest {
     token: string;
@@ -157,14 +102,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ScanRespo
         const today = getTodayJST();
 
         // Check for existing attendance log today
-        const existingLog = await prisma.attendanceLog.findUnique({
-            where: {
-                discordUserId_checkInDate: {
-                    discordUserId: userId,
-                    checkInDate: today,
-                },
-            },
-        });
+        const { exists: alreadyCheckedIn, method: existingMethod } = await findAttendanceLog(userId, today);
 
         // Determine primary guild based on user's attribute
         const memberships = user.guildMemberships;
@@ -204,7 +142,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ScanRespo
             }] : [],
         };
 
-        if (existingLog) {
+        if (alreadyCheckedIn) {
             // Already checked in today - log but don't send notification (it's not an error)
             await logger.debug("スキャン（本日入場済み）", {
                 discordUser: { id: userId, name: displayName },
@@ -218,16 +156,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<ScanRespo
             });
         }
 
-        // Create new attendance log
-        await prisma.attendanceLog.create({
-            data: {
-                discordUserId: userId,
-                primaryGuildId: primaryGuildId,
-                attribute: user.primaryAttribute,
-                checkInDate: today,
-                checkInMethod: "scan",
-            },
-        });
+        // Create new attendance log using repository
+        await checkInUser(userId, primaryGuildId, user.primaryAttribute, "scan");
 
         // Log successful scan
         await logger.info("スキャン成功（入場記録）", {

@@ -1,9 +1,8 @@
 /**
- * Get today's date in JST (Japan Standard Time) format YYYY-MM-DD
+ * Date Utilities for Bot
+ *
+ * Re-exports the shared date utilities.
+ * This file exists for backward compatibility.
  */
-export function getTodayJST(): string {
-    const now = new Date();
-    const jstOffset = 9 * 60 * 60 * 1000;
-    const jstDate = new Date(now.getTime() + jstOffset);
-    return jstDate.toISOString().split("T")[0];
-}
+
+export { getTodayJST, formatJST, isValidDateString } from "../../lib/shared/date";
