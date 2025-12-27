@@ -285,7 +285,8 @@ async function handleAbsent(
  * Manually check-in a specific user
  */
 async function handleCheckin(
-    interaction: ChatInputCommandInteraction
+    interaction: ChatInputCommandInteraction,
+    allowedGuildIds: string[]
 ): Promise<void> {
     const userInput = interaction.options.getString("user", true);
     const today = getTodayJST();
@@ -305,14 +306,13 @@ async function handleCheckin(
         return;
     }
 
-    // Check if user exists in DB
+    // Check if user exists in DB with all guild memberships
     const dbUser = await prisma.user.findUnique({
         where: { discordUserId: targetUserId },
         include: {
             guildMemberships: {
                 include: { guild: true },
                 where: { guild: { isTargetGuild: true } },
-                take: 1,
             },
         },
     });
@@ -323,6 +323,19 @@ async function handleCheckin(
             ephemeral: true,
         });
         return;
+    }
+
+    // Check if organizer has permission for this user's guild
+    if (allowedGuildIds.length > 0) {
+        const userGuildIds = dbUser.guildMemberships.map((m) => m.guildId);
+        const hasPermission = userGuildIds.some((guildId) => allowedGuildIds.includes(guildId));
+        if (!hasPermission) {
+            await interaction.reply({
+                content: `❌ このユーザーの会議に対するチェックイン権限がありません。`,
+                ephemeral: true,
+            });
+            return;
+        }
     }
 
     // Check for existing attendance log today
@@ -413,7 +426,7 @@ export async function handleAttendance(interaction: ChatInputCommandInteraction)
             await handleAbsent(interaction, organizerGuildIds);
             break;
         case "checkin":
-            await handleCheckin(interaction);
+            await handleCheckin(interaction, organizerGuildIds);
             break;
     }
 }
@@ -458,17 +471,36 @@ export async function handleAttendanceAutocomplete(interaction: AutocompleteInte
             await interaction.respond([]);
         }
     } else if (focusedOption.name === "user") {
-        // Autocomplete for checkin command - search all users in DB
+        // Autocomplete for checkin command - search users based on permission
+        const organizerGuildIds = await getOrganizerGuildIds(interaction.user.id);
+
+        if (organizerGuildIds === null) {
+            await interaction.respond([]);
+            return;
+        }
+
         const searchText = focusedOption.value.toLowerCase();
 
         try {
+            // Build where clause based on permissions
+            const whereClause: any = {
+                OR: [
+                    { globalName: { contains: searchText } },
+                    { discordUserId: { contains: searchText } },
+                ],
+            };
+
+            // If organizer (not staff/admin), filter by allowed guilds
+            if (organizerGuildIds.length > 0) {
+                whereClause.guildMemberships = {
+                    some: {
+                        guildId: { in: organizerGuildIds },
+                    },
+                };
+            }
+
             const users = await prisma.user.findMany({
-                where: {
-                    OR: [
-                        { globalName: { contains: searchText } },
-                        { discordUserId: { contains: searchText } },
-                    ],
-                },
+                where: whereClause,
                 include: {
                     guildMemberships: {
                         include: { guild: true },
