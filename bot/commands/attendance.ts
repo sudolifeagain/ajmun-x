@@ -3,39 +3,69 @@ import { prisma, getTodayJST, getAttributeLabel } from "../utils";
 import { getOrganizerGuildIds } from "../services";
 import logger from "../../app/lib/discordLogger";
 
+// ============================================================================
+// Constants
+// ============================================================================
+
+/** Maximum number of users to display in list commands */
 const MAX_DISPLAY = 100;
+
+/** Warning message when staff filter is ignored */
+const STAFF_FILTER_WARNING = "⚠️ 会議を指定した場合、事務局員フィルタは無視されます。\n\n";
+
+// ============================================================================
+// Type Definitions
+// ============================================================================
+
+/** Result of resolving a conference name */
+interface ConferenceResult {
+    guildId: string | null;
+    guildName: string | null;
+    error?: string;
+}
+
+/** Parsed filter options from command */
+interface FilterOptions {
+    attribute: string | null;
+    staffFilterWarning: boolean;
+    guildFilter: string[] | null;
+    guildName: string | null;
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
 
 /**
  * Resolve conference name to guild ID
- * If allowedGuildIds is provided, only those guilds can be resolved
+ * @param conference - Conference name to search (partial match)
+ * @param allowedGuildIds - Empty = all guilds, non-empty = only those guilds
  */
 async function resolveConference(
     conference: string | null,
     allowedGuildIds: string[]
-): Promise<{
-    guildId: string | null;
-    guildName: string | null;
-    error?: string;
-}> {
+): Promise<ConferenceResult> {
     if (!conference || conference === "all") {
         return { guildId: null, guildName: null };
     }
+
     const guild = await prisma.guild.findFirst({
         where: {
             guildName: { contains: conference },
             isTargetGuild: true,
-            // If allowedGuildIds is specified (organizer), filter by those
             ...(allowedGuildIds.length > 0 && { guildId: { in: allowedGuildIds } }),
         },
     });
+
     if (!guild) {
         return { guildId: null, guildName: null, error: `会議「${conference}」が見つかりません` };
     }
+
     return { guildId: guild.guildId, guildName: guild.guildName };
 }
 
 /**
- * Build filter description for embed
+ * Build filter description text for embed footer
  */
 function buildFilterDescription(guildName: string | null, attribute: string | null): string | null {
     const filters: string[] = [];
@@ -45,16 +75,14 @@ function buildFilterDescription(guildName: string | null, attribute: string | nu
 }
 
 /**
- * Handle /attendance status command
- * @param allowedGuildIds Empty array = all guilds, non-empty = only those guilds
+ * Parse command filter options and apply staff filter warning logic
  */
-async function handleStatus(
+async function parseFilterOptions(
     interaction: ChatInputCommandInteraction,
     allowedGuildIds: string[]
-): Promise<void> {
+): Promise<{ options: FilterOptions; error?: string }> {
     const conference = interaction.options.getString("conference");
     let attribute = interaction.options.getString("attribute");
-    const today = getTodayJST();
 
     // Warn and ignore staff filter when conference is specified
     let staffFilterWarning = false;
@@ -63,11 +91,9 @@ async function handleStatus(
         attribute = null;
     }
 
-    // For organizers, if no conference specified, force filter to their guilds
     const { guildId: targetGuildId, guildName, error } = await resolveConference(conference, allowedGuildIds);
     if (error) {
-        await interaction.reply({ content: `❌ ${error}`, ephemeral: true });
-        return;
+        return { options: { attribute: null, staffFilterWarning: false, guildFilter: null, guildName: null }, error };
     }
 
     // Build guild filter
@@ -77,6 +103,50 @@ async function handleStatus(
     } else if (allowedGuildIds.length > 0) {
         guildFilter = allowedGuildIds;
     }
+
+    return { options: { attribute, staffFilterWarning, guildFilter, guildName } };
+}
+
+/**
+ * Extract Discord user ID from autocomplete value or raw input
+ * @returns User ID or null if invalid format
+ */
+function extractUserId(input: string): string | null {
+    // Format: "displayName (discordUserId)" from autocomplete
+    const idMatch = input.match(/\(([0-9]+)\)$/);
+    if (idMatch) {
+        return idMatch[1];
+    }
+
+    // Raw Discord ID
+    if (/^[0-9]+$/.test(input)) {
+        return input;
+    }
+
+    return null;
+}
+
+// ============================================================================
+// Command Handlers
+// ============================================================================
+
+/**
+ * Handle /attendance status command
+ * Shows attendance summary (present/absent counts)
+ */
+async function handleStatus(
+    interaction: ChatInputCommandInteraction,
+    allowedGuildIds: string[]
+): Promise<void> {
+    const today = getTodayJST();
+
+    const { options, error } = await parseFilterOptions(interaction, allowedGuildIds);
+    if (error) {
+        await interaction.reply({ content: `❌ ${error}`, ephemeral: true });
+        return;
+    }
+
+    const { attribute, staffFilterWarning, guildFilter, guildName } = options;
 
     const presentCount = await prisma.attendanceLog.count({
         where: {
@@ -109,48 +179,32 @@ async function handleStatus(
 
     const filterDesc = buildFilterDescription(guildName, attribute);
     if (filterDesc) embed.setDescription(filterDesc);
-    if (allowedGuildIds.length > 0 && !targetGuildId) {
+    if (allowedGuildIds.length > 0 && !guildFilter?.length) {
         embed.setFooter({ text: `対象: ${allowedGuildIds.length}サーバー` });
     }
 
-    const warningMessage = staffFilterWarning
-        ? "⚠️ 会議を指定した場合、事務局員フィルタは無視されます。\n\n"
-        : "";
+    const warningMessage = staffFilterWarning ? STAFF_FILTER_WARNING : "";
 
     await interaction.reply({ content: warningMessage || undefined, embeds: [embed], flags: MessageFlags.SuppressNotifications });
 }
 
 /**
  * Handle /attendance present command
+ * Shows list of users who checked in today
  */
 async function handlePresent(
     interaction: ChatInputCommandInteraction,
     allowedGuildIds: string[]
 ): Promise<void> {
-    const conference = interaction.options.getString("conference");
-    let attribute = interaction.options.getString("attribute");
     const today = getTodayJST();
 
-    // Warn and ignore staff filter when conference is specified
-    let staffFilterWarning = false;
-    if (conference && conference !== "all" && attribute === "staff") {
-        staffFilterWarning = true;
-        attribute = null;
-    }
-
-    const { guildId: targetGuildId, guildName, error } = await resolveConference(conference, allowedGuildIds);
+    const { options, error } = await parseFilterOptions(interaction, allowedGuildIds);
     if (error) {
         await interaction.reply({ content: `❌ ${error}`, ephemeral: true });
         return;
     }
 
-    // Build guild filter
-    let guildFilter: string[] | null = null;
-    if (targetGuildId) {
-        guildFilter = [targetGuildId];
-    } else if (allowedGuildIds.length > 0) {
-        guildFilter = allowedGuildIds;
-    }
+    const { attribute, staffFilterWarning, guildFilter, guildName } = options;
 
     const logs = await prisma.attendanceLog.findMany({
         where: {
@@ -164,7 +218,7 @@ async function handlePresent(
     });
 
     const currentGuildId = interaction.guildId;
-    const displayGuildId = targetGuildId || currentGuildId;
+    const displayGuildId = guildFilter?.[0] || currentGuildId;
 
     const allUsers = logs.map((log) => {
         let membership = displayGuildId
@@ -191,44 +245,28 @@ async function handlePresent(
     if (filterDesc) embed.setFooter({ text: remaining > 0 ? `${filterDesc} | 他 ${remaining}人` : filterDesc });
     else if (remaining > 0) embed.setFooter({ text: `他 ${remaining}人` });
 
-    const warningMessage = staffFilterWarning
-        ? "⚠️ 会議を指定した場合、事務局員フィルタは無視されます。\n\n"
-        : "";
+    const warningMessage = staffFilterWarning ? STAFF_FILTER_WARNING : "";
 
     await interaction.reply({ content: warningMessage || undefined, embeds: [embed], flags: MessageFlags.SuppressNotifications });
 }
 
 /**
  * Handle /attendance absent command
+ * Shows list of users who have not checked in today
  */
 async function handleAbsent(
     interaction: ChatInputCommandInteraction,
     allowedGuildIds: string[]
 ): Promise<void> {
-    const conference = interaction.options.getString("conference");
-    let attribute = interaction.options.getString("attribute");
     const today = getTodayJST();
 
-    // Warn and ignore staff filter when conference is specified
-    let staffFilterWarning = false;
-    if (conference && conference !== "all" && attribute === "staff") {
-        staffFilterWarning = true;
-        attribute = null;
-    }
-
-    const { guildId: targetGuildId, guildName, error } = await resolveConference(conference, allowedGuildIds);
+    const { options, error } = await parseFilterOptions(interaction, allowedGuildIds);
     if (error) {
         await interaction.reply({ content: `❌ ${error}`, ephemeral: true });
         return;
     }
 
-    // Build guild filter
-    let guildFilter: string[] | null = null;
-    if (targetGuildId) {
-        guildFilter = [targetGuildId];
-    } else if (allowedGuildIds.length > 0) {
-        guildFilter = allowedGuildIds;
-    }
+    const { attribute, staffFilterWarning, guildFilter, guildName } = options;
 
     const presentUserIds = (
         await prisma.attendanceLog.findMany({
@@ -249,7 +287,7 @@ async function handleAbsent(
     });
 
     const currentGuildId = interaction.guildId;
-    const displayGuildId = targetGuildId || currentGuildId;
+    const displayGuildId = guildFilter?.[0] || currentGuildId;
 
     const allUsers = absentUsers.map((user) => {
         const membership = displayGuildId
@@ -273,9 +311,7 @@ async function handleAbsent(
     if (filterDesc) embed.setFooter({ text: remaining > 0 ? `${filterDesc} | 他 ${remaining}人` : filterDesc });
     else if (remaining > 0) embed.setFooter({ text: `他 ${remaining}人` });
 
-    const warningMessage = staffFilterWarning
-        ? "⚠️ 会議を指定した場合、事務局員フィルタは無視されます。\n\n"
-        : "";
+    const warningMessage = staffFilterWarning ? STAFF_FILTER_WARNING : "";
 
     await interaction.reply({ content: warningMessage || undefined, embeds: [embed], flags: MessageFlags.SuppressNotifications });
 }
@@ -291,14 +327,8 @@ async function handleCheckin(
     const userInput = interaction.options.getString("user", true);
     const today = getTodayJST();
 
-    // userInput can be either a Discord ID or "name (id)" format from autocomplete
-    let targetUserId: string;
-    const idMatch = userInput.match(/\(([0-9]+)\)$/);
-    if (idMatch) {
-        targetUserId = idMatch[1];
-    } else if (/^[0-9]+$/.test(userInput)) {
-        targetUserId = userInput;
-    } else {
+    const targetUserId = extractUserId(userInput);
+    if (!targetUserId) {
         await interaction.reply({
             content: `❌ 無効なユーザー指定です。オートコンプリートから選択するか、Discord IDを入力してください。`,
             ephemeral: true,
