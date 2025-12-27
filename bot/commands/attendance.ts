@@ -286,12 +286,27 @@ async function handleAbsent(
 async function handleCheckin(
     interaction: ChatInputCommandInteraction
 ): Promise<void> {
-    const targetUser = interaction.options.getUser("user", true);
+    const userInput = interaction.options.getString("user", true);
     const today = getTodayJST();
+
+    // userInput can be either a Discord ID or "name (id)" format from autocomplete
+    let targetUserId: string;
+    const idMatch = userInput.match(/\(([0-9]+)\)$/);
+    if (idMatch) {
+        targetUserId = idMatch[1];
+    } else if (/^[0-9]+$/.test(userInput)) {
+        targetUserId = userInput;
+    } else {
+        await interaction.reply({
+            content: `❌ 無効なユーザー指定です。オートコンプリートから選択するか、Discord IDを入力してください。`,
+            ephemeral: true,
+        });
+        return;
+    }
 
     // Check if user exists in DB
     const dbUser = await prisma.user.findUnique({
-        where: { discordUserId: targetUser.id },
+        where: { discordUserId: targetUserId },
         include: {
             guildMemberships: {
                 include: { guild: true },
@@ -303,7 +318,7 @@ async function handleCheckin(
 
     if (!dbUser) {
         await interaction.reply({
-            content: `❌ <@${targetUser.id}> はデータベースに登録されていません。\n先に \`/system sync\` を実行してください。`,
+            content: `❌ 指定されたユーザー (${targetUserId}) はデータベースに登録されていません。\n先に \`/system sync\` を実行してください。`,
             ephemeral: true,
         });
         return;
@@ -313,16 +328,16 @@ async function handleCheckin(
     const existingLog = await prisma.attendanceLog.findUnique({
         where: {
             discordUserId_checkInDate: {
-                discordUserId: targetUser.id,
+                discordUserId: targetUserId,
                 checkInDate: today,
             },
         },
     });
 
     if (existingLog) {
-        const methodLabel = existingLog.checkInMethod === "manual" ? "手動" : "スキャン";
+        const methodLabel = (existingLog as any).checkInMethod === "manual" ? "手動" : "スキャン";
         await interaction.reply({
-            content: `⚠️ <@${targetUser.id}> は本日既に出席済みです（${methodLabel}受付）`,
+            content: `⚠️ <@${targetUserId}> は本日既に出席済みです（${methodLabel}受付）`,
             flags: MessageFlags.SuppressNotifications,
         });
         return;
@@ -334,22 +349,22 @@ async function handleCheckin(
     // Create attendance log with manual method
     await prisma.attendanceLog.create({
         data: {
-            discordUserId: targetUser.id,
+            discordUserId: targetUserId,
             primaryGuildId: primaryGuildId,
             attribute: dbUser.primaryAttribute,
             checkInDate: today,
             checkInMethod: "manual",
-        },
+        } as any,
     });
 
-    const displayName = dbUser.globalName || targetUser.username;
+    const displayName = dbUser.globalName || targetUserId;
     const attrLabel = getAttributeLabel(dbUser.primaryAttribute);
 
     const embed = new EmbedBuilder()
         .setTitle("✅ 手動チェックイン完了")
         .setColor(0x22c55e)
         .addFields(
-            { name: "ユーザー", value: `${displayName} (<@${targetUser.id}>)`, inline: true },
+            { name: "ユーザー", value: `${displayName} (<@${targetUserId}>)`, inline: true },
             { name: "属性", value: attrLabel, inline: true },
             { name: "会議", value: primaryGuildName, inline: true }
         )
@@ -432,6 +447,42 @@ export async function handleAttendanceAutocomplete(interaction: AutocompleteInte
             );
         } catch (error) {
             console.error("Autocomplete error:", error);
+            await interaction.respond([]);
+        }
+    } else if (focusedOption.name === "user") {
+        // Autocomplete for checkin command - search all users in DB
+        const searchText = focusedOption.value.toLowerCase();
+
+        try {
+            const users = await prisma.user.findMany({
+                where: {
+                    OR: [
+                        { globalName: { contains: searchText } },
+                        { discordUserId: { contains: searchText } },
+                    ],
+                },
+                include: {
+                    guildMemberships: {
+                        include: { guild: true },
+                        where: { guild: { isTargetGuild: true } },
+                        take: 1,
+                    },
+                },
+                take: 25,
+            });
+
+            await interaction.respond(
+                users.map((u) => {
+                    const guildName = u.guildMemberships[0]?.guild.guildName || "未所属";
+                    const displayName = u.globalName || u.discordUserId;
+                    return {
+                        name: `${displayName} - ${guildName}`,
+                        value: `${displayName} (${u.discordUserId})`,
+                    };
+                })
+            );
+        } catch (error) {
+            console.error("User autocomplete error:", error);
             await interaction.respond([]);
         }
     }

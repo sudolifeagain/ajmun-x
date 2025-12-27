@@ -93,11 +93,12 @@ const attendanceCommand = new SlashCommandBuilder()
         sub
             .setName("checkin")
             .setDescription("特定ユーザーを手動で出席扱いにする")
-            .addUserOption((opt) =>
+            .addStringOption((opt) =>
                 opt
                     .setName("user")
-                    .setDescription("出席扱いにするユーザー")
+                    .setDescription("ユーザー名またはDiscord IDで検索")
                     .setRequired(true)
+                    .setAutocomplete(true)
             )
     );
 
