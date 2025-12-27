@@ -3,6 +3,64 @@ import prisma from "@/app/lib/prisma";
 import { verifyQrToken } from "@/app/lib/session";
 import logger from "@/app/lib/discordLogger";
 import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from "@/app/lib/rateLimit";
+import { getTodayJST } from "@/app/lib/date";
+
+// Types for guild resolution (inline to avoid circular dependency)
+interface GuildMembershipInfo {
+    guildId: string;
+    guildName: string;
+    isTargetGuild: boolean;
+    isOperationServer: boolean;
+    roleIds: string;
+}
+
+interface PrimaryGuildResult {
+    guildId: string | null;
+    guildName: string;
+}
+
+/**
+ * Resolve primary guild for a user based on their attribute
+ * (Inline implementation to avoid bot/app circular dependency)
+ */
+async function resolvePrimaryGuild(
+    memberships: GuildMembershipInfo[],
+    attribute: string
+): Promise<PrimaryGuildResult> {
+    if (attribute === "staff") {
+        const opServer = memberships.find((m) => m.isOperationServer);
+        if (opServer) {
+            return { guildId: opServer.guildId, guildName: opServer.guildName };
+        }
+    } else if (attribute === "organizer") {
+        const allRoleIds = memberships.flatMap((m) => {
+            try {
+                return JSON.parse(m.roleIds) as string[];
+            } catch {
+                return [];
+            }
+        });
+
+        const roleMapping = await (prisma as any).organizerRoleMapping?.findFirst({
+            where: { roleId: { in: allRoleIds } },
+        });
+
+        if (roleMapping) {
+            const targetGuildIds = roleMapping.targetGuildIds.split(",").map((id: string) => id.trim());
+            const targetMembership = memberships.find((m) => targetGuildIds.includes(m.guildId));
+            if (targetMembership) {
+                return { guildId: targetMembership.guildId, guildName: targetMembership.guildName };
+            }
+        }
+    }
+
+    // Default: use any target guild
+    const targetGuild = memberships.find((m) => m.isTargetGuild);
+    return {
+        guildId: targetGuild?.guildId || null,
+        guildName: targetGuild?.guildName || "",
+    };
+}
 
 interface ScanRequest {
     token: string;
@@ -95,11 +153,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<ScanRespo
 
         const displayName = user.globalName || userId;
 
-        // Get today's date in JST (UTC+9)
-        const now = new Date();
-        const jstOffset = 9 * 60 * 60 * 1000;
-        const jstDate = new Date(now.getTime() + jstOffset);
-        const today = jstDate.toISOString().split("T")[0];
+        // Get today's date in JST
+        const today = getTodayJST();
 
         // Check for existing attendance log today
         const existingLog = await prisma.attendanceLog.findUnique({
@@ -111,70 +166,28 @@ export async function POST(request: NextRequest): Promise<NextResponse<ScanRespo
             },
         });
 
-        // Determine primary guild based on user's attribute (same logic as DM sending)
+        // Determine primary guild based on user's attribute
         const memberships = user.guildMemberships;
         const attribute = user.primaryAttribute;
-        let primaryGuildMembership = memberships[0]; // Default fallback
 
-        if (attribute === "staff") {
-            // Staff: Prioritize operation server
-            const opServer = await prisma.guild.findFirst({
-                where: { isOperationServer: true },
-            });
-            if (opServer) {
-                // Find membership in operation server (might not be in target guilds query)
-                const opMembership = await prisma.userGuildMembership.findUnique({
-                    where: {
-                        discordUserId_guildId: {
-                            discordUserId: userId,
-                            guildId: opServer.guildId,
-                        },
-                    },
-                    include: { guild: true },
-                });
-                if (opMembership) {
-                    primaryGuildMembership = opMembership;
-                }
-            }
-        } else if (attribute === "organizer") {
-            // Organizer: Prioritize their mapped conference from OrganizerRoleMapping
-            const allRoleIds = memberships.flatMap((m) => {
-                try {
-                    return JSON.parse(m.roleIds) as string[];
-                } catch {
-                    return [];
-                }
-            });
+        // Convert to GuildMembershipInfo format
+        const membershipInfos: GuildMembershipInfo[] = memberships.map((m) => ({
+            guildId: m.guildId,
+            guildName: m.guild.guildName,
+            isTargetGuild: m.guild.isTargetGuild,
+            isOperationServer: m.guild.isOperationServer,
+            roleIds: m.roleIds,
+        }));
 
-            const roleMapping = await prisma.organizerRoleMapping.findFirst({
-                where: {
-                    roleId: { in: allRoleIds },
-                },
-            });
+        const { guildId: primaryGuildId, guildName: primaryGuildName } = await resolvePrimaryGuild(
+            membershipInfos,
+            attribute
+        );
 
-            if (roleMapping) {
-                const targetGuildIds = roleMapping.targetGuildIds.split(",").map((id: string) => id.trim());
-                const targetMembership = memberships.find((m) => targetGuildIds.includes(m.guildId));
-                if (targetMembership) {
-                    primaryGuildMembership = targetMembership;
-                }
-            } else {
-                // Fallback: use any target guild they're in
-                const targetGuild = memberships.find((m) => m.guild.isTargetGuild);
-                if (targetGuild) {
-                    primaryGuildMembership = targetGuild;
-                }
-            }
-        } else {
-            // Participant: They should only be in one target guild
-            const targetGuild = memberships.find((m) => m.guild.isTargetGuild);
-            if (targetGuild) {
-                primaryGuildMembership = targetGuild;
-            }
-        }
-
-        const primaryGuildId = primaryGuildMembership?.guildId || null;
-        const primaryGuildName = primaryGuildMembership?.guild.guildName || "未所属";
+        // Find the matching membership for response
+        const primaryGuildMembership = primaryGuildId
+            ? memberships.find((m) => m.guildId === primaryGuildId)
+            : memberships[0];
 
         // Build response user data with single guild
         const responseUser = {
