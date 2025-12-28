@@ -517,6 +517,13 @@ export async function handleAttendanceAutocomplete(interaction: AutocompleteInte
                 OR: [
                     { globalName: { contains: searchText } },
                     { discordUserId: { contains: searchText } },
+                    {
+                        guildMemberships: {
+                            some: {
+                                nickname: { contains: searchText },
+                            },
+                        },
+                    },
                 ],
             };
 
