@@ -3,6 +3,7 @@ import { prisma } from "../utils";
 interface AttributeConfig {
     staffRoleIds: string[];
     organizerRoleIds: string[];
+    secretaryRoleIds: string[];
     targetGuildIds: string[];
 }
 
@@ -10,32 +11,36 @@ interface AttributeConfig {
  * Fetch attribute configuration from database
  */
 export async function getAttributeConfig(): Promise<AttributeConfig> {
-    const [staffConfig, organizerConfig, targetGuildConfig] = await Promise.all([
+    const [staffConfig, organizerConfig, secretaryConfig, targetGuildConfig] = await Promise.all([
         prisma.systemConfig.findUnique({ where: { key: "staff_role_ids" } }),
         prisma.systemConfig.findUnique({ where: { key: "organizer_role_ids" } }),
+        prisma.systemConfig.findUnique({ where: { key: "secretary_role_ids" } }),
         prisma.systemConfig.findUnique({ where: { key: "target_guild_ids" } }),
     ]);
 
     return {
         staffRoleIds: staffConfig?.value.split(",").map((id) => id.trim()).filter(Boolean) || [],
         organizerRoleIds: organizerConfig?.value.split(",").map((id) => id.trim()).filter(Boolean) || [],
+        secretaryRoleIds: secretaryConfig?.value.split(",").map((id) => id.trim()).filter(Boolean) || [],
         targetGuildIds: targetGuildConfig?.value.split(",").map((id) => id.trim()).filter(Boolean) || [],
     };
 }
 
 /**
  * Determine user attribute based on roles
- * Priority: staff > organizer > participant
+ * Priority: staff > organizer > secretary > participant
  */
 export function determineAttribute(
     roleIds: string[],
     config: AttributeConfig
-): "staff" | "organizer" | "participant" {
+): "staff" | "organizer" | "secretary" | "participant" {
     const isStaff = roleIds.some((id) => config.staffRoleIds.includes(id));
     const isOrganizer = roleIds.some((id) => config.organizerRoleIds.includes(id));
+    const isSecretary = roleIds.some((id) => config.secretaryRoleIds.includes(id));
 
     if (isStaff) return "staff";
     if (isOrganizer) return "organizer";
+    if (isSecretary) return "secretary";
     return "participant";
 }
 

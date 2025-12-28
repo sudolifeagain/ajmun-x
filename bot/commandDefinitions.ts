@@ -12,6 +12,7 @@ import { SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
  */
 const attributeChoices = [
     { name: "参加者", value: "participant" },
+    { name: "当セク", value: "secretary" },
     { name: "会議フロント", value: "organizer" },
     { name: "事務局員", value: "staff" },
 ] as const;
@@ -22,6 +23,7 @@ const attributeChoices = [
 const configKeyChoices = [
     { name: "事務局員ロールID", value: "staff_role_ids" },
     { name: "会議フロントロールID", value: "organizer_role_ids" },
+    { name: "当セクロールID", value: "secretary_role_ids" },
     { name: "bot管理者ロールID", value: "admin_role_ids" },
     { name: "会議サーバーID", value: "target_guild_ids" },
 ] as const;
@@ -142,6 +144,7 @@ const systemCommand = new SlashCommandBuilder()
                     .addChoices(
                         { name: "全員", value: "all" },
                         { name: "参加者", value: "participant" },
+                        { name: "当セク", value: "secretary" },
                         { name: "会議フロント", value: "organizer" },
                         { name: "事務局員", value: "staff" },
                         { name: "テスト（指定ユーザーのみ）", value: "test" }
@@ -213,6 +216,17 @@ const setupCommand = new SlashCommandBuilder()
         sub
             .setName("staff-roles")
             .setDescription("事務局員ロールを設定")
+            .addStringOption((opt) =>
+                opt
+                    .setName("roles")
+                    .setDescription("ロールID (カンマ区切りで複数指定可)")
+                    .setRequired(true)
+            )
+    )
+    .addSubcommand((sub) =>
+        sub
+            .setName("secretary-roles")
+            .setDescription("当セクロールを設定")
             .addStringOption((opt) =>
                 opt
                     .setName("roles")

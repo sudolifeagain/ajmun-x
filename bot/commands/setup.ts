@@ -177,6 +177,31 @@ async function handleStaffRoles(
 }
 
 /**
+ * Handle /setup secretary-roles subcommand
+ */
+async function handleSecretaryRoles(
+    interaction: ChatInputCommandInteraction
+): Promise<void> {
+    const roles = interaction.options.getString("roles", true);
+
+    await prisma.systemConfig.upsert({
+        where: { key: "secretary_role_ids" },
+        update: { value: roles },
+        create: { key: "secretary_role_ids", value: roles, description: "当セクロールID" },
+    });
+
+    await interaction.reply({
+        content: `✅ 当セクロールを設定しました: \`${roles}\``,
+        flags: MessageFlags.SuppressNotifications,
+    });
+
+    await logger.info("当セクロール設定", {
+        ...getLogContext(interaction.user),
+        details: `ロールID: ${roles}`,
+    });
+}
+
+/**
  * Handle /setup organizer-roles subcommand
  * If guild_ids is provided: Create role-guild mapping in OrganizerRoleMapping
  * If guild_ids is omitted: Add to organizer_role_ids in SystemConfig (legacy behavior)
@@ -263,6 +288,10 @@ async function handleStatus(
         where: { key: "organizer_role_ids" },
     });
 
+    const secretaryConfig = await prisma.systemConfig.findUnique({
+        where: { key: "secretary_role_ids" },
+    });
+
     const embed = new EmbedBuilder()
         .setTitle("⚙️ サーバー設定状況")
         .setColor(0x5865f2)
@@ -295,6 +324,11 @@ async function handleStatus(
             {
                 name: "会議フロントロール",
                 value: organizerConfig?.value || "未設定",
+                inline: false,
+            },
+            {
+                name: "当セクロール",
+                value: secretaryConfig?.value || "未設定",
                 inline: false,
             }
         )
@@ -343,6 +377,9 @@ export async function handleSetup(
             break;
         case "staff-roles":
             await handleStaffRoles(interaction);
+            break;
+        case "secretary-roles":
+            await handleSecretaryRoles(interaction);
             break;
         case "organizer-roles":
             await handleOrganizerRoles(interaction);
