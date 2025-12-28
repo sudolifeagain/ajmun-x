@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/app/lib/session";
 import prisma from "@/app/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import TicketCard from "./TicketCard";
 
 // Force dynamic rendering to ensure cookies are always available
@@ -13,7 +14,21 @@ export default async function TicketPage() {
         redirect("/");
     }
 
-    // Fetch user with guild memberships (target guilds or operation server only)
+    // Determine guild filter based on user role
+    let guildWhere: Prisma.GuildWhereInput = {
+        OR: [
+            { isTargetGuild: true },
+            { isOperationServer: true },
+        ],
+    };
+
+    if (user.primaryAttribute === "staff") {
+        guildWhere = { isOperationServer: true };
+    } else if (user.primaryAttribute === "organizer") {
+        guildWhere = { isTargetGuild: true };
+    }
+
+    // Fetch user with guild memberships
     const userWithGuilds = await prisma.user.findUnique({
         where: { discordUserId: user.discordUserId },
         include: {
@@ -22,12 +37,7 @@ export default async function TicketPage() {
                     guild: true,
                 },
                 where: {
-                    guild: {
-                        OR: [
-                            { isTargetGuild: true },
-                            { isOperationServer: true },
-                        ],
-                    },
+                    guild: guildWhere,
                 },
             },
         },
