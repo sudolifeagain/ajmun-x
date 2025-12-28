@@ -17,7 +17,6 @@ export async function handleMemberAdd(member: GuildMember): Promise<void> {
         update: {
             guildName: member.guild.name,
             guildIconUrl: member.guild.iconURL(),
-            isTargetGuild: isTarget,
         },
         create: {
             guildId: member.guild.id,
