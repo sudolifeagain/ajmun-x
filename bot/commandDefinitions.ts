@@ -11,7 +11,7 @@ import { SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
  * Attribute choices used in attendance commands
  */
 const attributeChoices = [
-    { name: "そのほか", value: "participant" },
+    { name: "参加者", value: "participant" },
     { name: "会議フロント", value: "organizer" },
     { name: "事務局員", value: "staff" },
 ] as const;
@@ -141,7 +141,7 @@ const systemCommand = new SlashCommandBuilder()
                     .setRequired(true)
                     .addChoices(
                         { name: "全員", value: "all" },
-                        { name: "そのほか", value: "participant" },
+                        { name: "参加者", value: "participant" },
                         { name: "会議フロント", value: "organizer" },
                         { name: "事務局員", value: "staff" },
                         { name: "テスト（指定ユーザーのみ）", value: "test" }
