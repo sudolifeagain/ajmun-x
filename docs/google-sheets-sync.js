@@ -278,6 +278,7 @@ function getAttributeLabel(attr) {
     switch (attr) {
         case "staff": return "スタッフ";
         case "organizer": return "会議フロント";
+        case "secretary": return "当セク";
         default: return "参加者";
     }
 }
