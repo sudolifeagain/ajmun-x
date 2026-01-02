@@ -204,7 +204,7 @@ function syncAllAttendance() {
     } catch (e) {
         console.error("Sync Error:", e);
         if (e.stack) console.error(e.stack);
-        SpreadsheetApp.getUi().alert("処理エラー: " + e.message);
+        safeAlert("処理エラー: " + e.message);
     }
 }
 
@@ -259,14 +259,14 @@ function fetchAttendanceData(dates) {
 
         if (responseCode !== 200) {
             console.error(`Error Response: ${contentText}`);
-            SpreadsheetApp.getUi().alert(`APIエラー (${responseCode}): ${contentText.substring(0, 200)}`);
+            safeAlert(`APIエラー (${responseCode}): ${contentText.substring(0, 200)}`);
             return null;
         }
 
         return JSON.parse(contentText);
     } catch (e) {
         console.error("Fetch Error:", e);
-        SpreadsheetApp.getUi().alert("接続エラー: " + e.message);
+        safeAlert("接続エラー: " + e.message);
         return null;
     }
 }
@@ -307,6 +307,17 @@ function formatTimestamp(isoString) {
     }).filter(d => d !== null);
 
     return formatted.join("\n"); // 改行区切りで表示（セル内改行）
+}
+
+/**
+ * UIが使用可能な場合はアラートを表示し、そうでない場合（トリガー実行時など）はログ出力のみ行う
+ */
+function safeAlert(message) {
+    try {
+        SpreadsheetApp.getUi().alert(message);
+    } catch (e) {
+        console.warn("UI alert skipped (running in background): " + message);
+    }
 }
 
 // ==========================
