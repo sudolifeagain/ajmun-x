@@ -2,12 +2,12 @@
 set -euo pipefail
 
 REMOTE="oci"
-APP_DIR="/opt/ajmun37"
+APP_DIR="/home/ubuntu/ajmun37"
 SERVICE_NAME="ajmun37"
 
 echo "==> Syncing files..."
 # NOTE: .env の DATABASE_URL は file:/app/data/prod.db に設定すること
-ssh "$REMOTE" "mkdir -p '${APP_DIR}/build' '${APP_DIR}/data' 2>/dev/null || true"
+ssh "$REMOTE" "mkdir -p '${APP_DIR}/build' '${APP_DIR}/data' && chmod 777 '${APP_DIR}/data'"
 tar czf - --exclude='node_modules' --exclude='.next' --exclude='prisma/prod.db' --exclude='*.exe' . | \
   ssh "$REMOTE" "tar xzf - -C '${APP_DIR}/build/'"
 
