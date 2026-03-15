@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import prisma from "@/app/lib/prisma";
 import logger from "@/app/lib/discordLogger";
 import { generateQrToken } from "@/app/lib/qrToken";
@@ -23,8 +24,13 @@ export async function GET(request: NextRequest) {
     const storedState = request.cookies.get("discord_oauth_state")?.value;
     const clientIp = getClientIp(request);
 
-    // CSRF check
-    if (!state || state !== storedState) {
+    // CSRF check (timing-safe comparison for consistency)
+    const stateMatch =
+        state &&
+        storedState &&
+        Buffer.byteLength(state) === Buffer.byteLength(storedState) &&
+        timingSafeEqual(Buffer.from(state), Buffer.from(storedState));
+    if (!stateMatch) {
         await logger.warn("ログイン失敗（CSRF検証エラー）", {
             source: "Web (OAuth)",
             details: `IP: ${clientIp}, state不一致またはstate欠落`,

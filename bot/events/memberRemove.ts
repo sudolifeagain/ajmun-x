@@ -36,6 +36,12 @@ export async function handleMemberRemove(member: GuildMember | PartialGuildMembe
             where: { discordUserId: member.id },
             data: { primaryAttribute: newAttribute },
         });
+    } else {
+        // No remaining memberships: reset to participant
+        await prisma.user.update({
+            where: { discordUserId: member.id },
+            data: { primaryAttribute: "participant" },
+        });
     }
 
     console.log(`Member removed: ${member.user.tag} from ${member.guild.name}`);

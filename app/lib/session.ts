@@ -1,5 +1,4 @@
 import { cookies } from "next/headers";
-import { createHmac, timingSafeEqual } from "crypto";
 import { jwtVerify, SignJWT } from "jose";
 import prisma from "./prisma";
 
@@ -55,49 +54,5 @@ export async function getSession(): Promise<User | null> {
         return user;
     } catch {
         return null;
-    }
-}
-
-/** Maximum QR token age in milliseconds (30 days) */
-const QR_TOKEN_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
-
-export function verifyQrToken(token: string): { valid: boolean; userId?: string } {
-    try {
-        const secret = process.env.QR_SECRET;
-        if (!secret) {
-            throw new Error("QR_SECRET environment variable is required");
-        }
-
-        const [payloadBase64, signature] = token.split(".");
-
-        if (!payloadBase64 || !signature) {
-            return { valid: false };
-        }
-
-        const payload = Buffer.from(payloadBase64, "base64url").toString();
-        const [userId, timestamp] = payload.split(":");
-
-        // Check token expiry (30 days)
-        const tokenTime = parseInt(timestamp, 10);
-        if (isNaN(tokenTime) || Date.now() - tokenTime > QR_TOKEN_MAX_AGE_MS) {
-            return { valid: false };
-        }
-
-        // Verify signature using HMAC
-        const expectedSignature = createHmac("sha256", secret)
-            .update(payload)
-            .digest("hex")
-            .slice(0, 32);
-
-        // Timing-safe comparison
-        const sigBuf = Buffer.from(signature, "utf8");
-        const expectedBuf = Buffer.from(expectedSignature, "utf8");
-        if (sigBuf.length !== expectedBuf.length || !timingSafeEqual(sigBuf, expectedBuf)) {
-            return { valid: false };
-        }
-
-        return { valid: true, userId };
-    } catch {
-        return { valid: false };
     }
 }

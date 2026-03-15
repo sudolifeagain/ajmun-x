@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
                         dmSendLogs: {
                             where: { sendType: "qrcode" },
                             orderBy: { createdAt: "desc" },
-                            take: 10,
+                            take: 10, // Limit to prevent unbounded queries; 10 covers typical re-send scenarios
                         },
                     },
                 },

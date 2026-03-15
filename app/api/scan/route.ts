@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/app/lib/prisma";
-import { verifyQrToken, getSession } from "@/app/lib/session";
+import { getSession } from "@/app/lib/session";
+import { verifyQrToken } from "@/app/lib/qrToken";
 import logger from "@/app/lib/discordLogger";
 import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from "@/app/lib/rateLimit";
 import { getTodayJST } from "@/app/lib/date";
@@ -32,6 +33,9 @@ interface ScanResponse {
 
 export async function POST(request: NextRequest): Promise<NextResponse<ScanResponse>> {
     // Staff authentication check
+    // Note: proxy.ts provides a fast cookie-existence check (no DB call),
+    // but does not verify JWT signature or staff role. This route handler
+    // performs the full authorization: JWT verification + staff attribute check.
     const session = await getSession();
     if (!session || session.primaryAttribute !== "staff") {
         return NextResponse.json(
