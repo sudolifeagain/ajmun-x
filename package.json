@@ -12,7 +12,7 @@
     "slides:preview": "marp -c marp.config.js -p docs/slides"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.1",
+    "@prisma/client": "^7.5.0",
     "@types/qrcode": "^1.5.6",
     "discord.js": "^14.25.1",
     "html2canvas": "^1.4.1",
