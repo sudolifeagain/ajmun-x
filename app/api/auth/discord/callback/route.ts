@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/app/lib/prisma";
 import logger from "@/app/lib/discordLogger";
 import { generateQrToken } from "@/app/lib/qrToken";
+import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from "@/app/lib/rateLimit";
+import { SESSION_COOKIE_NAME } from "@/app/lib/session";
 
 interface DiscordUser {
     id: string;
@@ -12,11 +14,23 @@ interface DiscordUser {
 
 
 export async function GET(request: NextRequest) {
+    const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+
+    // Rate limiting
+    const rateLimitResult = checkRateLimit(`auth:${clientIp}`, RATE_LIMITS.AUTH_API);
+    if (!rateLimitResult.allowed) {
+        const headers = getRateLimitHeaders(rateLimitResult, RATE_LIMITS.AUTH_API);
+        return NextResponse.json(
+            { error: "Rate limit exceeded" },
+            { status: 429, headers }
+        );
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const code = searchParams.get("code");
     const state = searchParams.get("state");
     const storedState = request.cookies.get("discord_oauth_state")?.value;
-    const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
 
     // CSRF check
     if (!state || state !== storedState) {
@@ -24,7 +38,7 @@ export async function GET(request: NextRequest) {
             source: "Web (OAuth)",
             details: `IP: ${clientIp}, state不一致またはstate欠落`,
         });
-        return NextResponse.redirect(new URL("/?error=invalid_state", request.url));
+        return NextResponse.redirect(new URL("/?error=invalid_state", baseUrl));
     }
 
     if (!code) {
@@ -32,7 +46,7 @@ export async function GET(request: NextRequest) {
             source: "Web (OAuth)",
             details: `IP: ${clientIp}`,
         });
-        return NextResponse.redirect(new URL("/?error=no_code", request.url));
+        return NextResponse.redirect(new URL("/?error=no_code", baseUrl));
     }
 
     const clientId = process.env.DISCORD_CLIENT_ID;
@@ -44,7 +58,7 @@ export async function GET(request: NextRequest) {
             source: "Web (OAuth)",
             details: "Discord認証情報が設定されていません",
         });
-        return NextResponse.redirect(new URL("/?error=config", request.url));
+        return NextResponse.redirect(new URL("/?error=config", baseUrl));
     }
 
     try {
@@ -63,7 +77,7 @@ export async function GET(request: NextRequest) {
 
         if (!tokenResponse.ok) {
             console.error("Token exchange failed:", await tokenResponse.text());
-            return NextResponse.redirect(new URL("/?error=token_failed", request.url));
+            return NextResponse.redirect(new URL("/?error=token_failed", baseUrl));
         }
 
         const tokenData = await tokenResponse.json();
@@ -75,7 +89,7 @@ export async function GET(request: NextRequest) {
         });
 
         if (!userResponse.ok) {
-            return NextResponse.redirect(new URL("/?error=user_failed", request.url));
+            return NextResponse.redirect(new URL("/?error=user_failed", baseUrl));
         }
 
         const discordUser: DiscordUser = await userResponse.json();
@@ -106,7 +120,6 @@ export async function GET(request: NextRequest) {
                 source: "Web (OAuth)",
                 details: "対象サーバーに未参加のためアクセス拒否",
             });
-            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.url.split('/api')[0];
             return NextResponse.redirect(new URL("/?error=access_denied", baseUrl));
         }
 
@@ -186,7 +199,6 @@ export async function GET(request: NextRequest) {
         const { createSessionToken } = await import("@/app/lib/session");
         const sessionToken = await createSessionToken(discordUser.id);
 
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.url.split('/api')[0];
         const redirectUrl = new URL("/ticket", baseUrl).toString();
 
         // Use HTML response with meta refresh to ensure cookie is set before redirect
@@ -211,7 +223,7 @@ export async function GET(request: NextRequest) {
         });
 
         // Set cookie
-        const cookieValue = `session=${sessionToken}; Path=/; Max-Age=604800; HttpOnly; Secure; SameSite=Lax`;
+        const cookieValue = `${SESSION_COOKIE_NAME}=${sessionToken}; Path=/; Max-Age=604800; HttpOnly; Secure; SameSite=Lax`;
         response.headers.append("Set-Cookie", cookieValue);
 
         // Delete oauth state cookie
@@ -224,7 +236,6 @@ export async function GET(request: NextRequest) {
             source: "Web (OAuth)",
             error,
         });
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.url.split('/api')[0];
         return NextResponse.redirect(new URL("/?error=unknown", baseUrl));
     }
 }
