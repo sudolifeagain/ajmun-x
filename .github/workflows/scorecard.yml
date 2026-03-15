@@ -5,7 +5,8 @@ on:
     branches: [main]
   branch_protection_rule:
   schedule:
-    - cron: "0 0 * * 1" # 毎週月曜 00:00 UTC
+    - cron: "0 0 * * 1" # Every Monday at 00:00 UTC
+  workflow_dispatch:
 
 permissions: read-all
 

@@ -25,4 +25,4 @@ This project follows these security practices:
 - **Dependency management**: Automated dependency updates via Dependabot with weekly checks for npm packages and GitHub Actions
 - **CI/CD hardening**: All GitHub Actions use SHA-pinned versions with minimal permissions (`contents: read`). [StepSecurity Harden Runner](https://github.com/step-security/harden-runner) monitors network egress in CI workflows
 - **Security scoring**: [OpenSSF Scorecard](https://securityscorecards.dev/) runs weekly to evaluate and track the project's security posture
-- **Code review**: All changes require pull request review before merging
+- **Code review**: All changes go through pull request review before merging (enforced via branch protection rules)
