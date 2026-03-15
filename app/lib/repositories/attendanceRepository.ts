@@ -217,6 +217,7 @@ export async function checkInUser(
             success: true,
             isNewCheckIn: true,
         };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
         // Prisma P2002 = unique constraint violation (already checked in)
         if (error?.code === "P2002") {
