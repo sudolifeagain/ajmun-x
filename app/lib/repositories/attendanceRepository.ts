@@ -218,8 +218,8 @@ export async function checkInUser(
             attribute,
             checkInDate: today,
             checkInMethod: method,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any, // Type assertion for checkInMethod until prisma regenerated
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any, // Type assertion for checkInMethod until prisma regenerated
     });
 
     return {
