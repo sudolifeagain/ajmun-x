@@ -26,6 +26,7 @@ COPY --from=builder /app/bot ./bot
 COPY --from=builder /app/lib ./lib
 COPY --from=builder /app/app/lib ./app/lib
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/package.json ./
 
 # エントリポイント
