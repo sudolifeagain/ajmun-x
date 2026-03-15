@@ -99,6 +99,7 @@ jobs:
             (docker stop '${SERVICE_NAME}' 2>/dev/null || true) && \
             (docker rm '${SERVICE_NAME}' 2>/dev/null || true) && \
             docker run -d \
+              --user \"\$(id -u):\$(id -g)\" \
               --name '${SERVICE_NAME}' \
               --restart unless-stopped \
               --read-only \
@@ -161,6 +162,7 @@ jobs:
               (docker stop '${SERVICE_NAME}' 2>/dev/null || true) && \
               (docker rm '${SERVICE_NAME}' 2>/dev/null || true) && \
               docker run -d \
+                --user \"\$(id -u):\$(id -g)\" \
                 --name '${SERVICE_NAME}' \
                 --restart unless-stopped \
                 --read-only \
