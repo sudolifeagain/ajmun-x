@@ -5,22 +5,27 @@
  * Used by both the OAuth callback and the bot service.
  */
 
-import { createHash, randomBytes } from "crypto";
+import { createHmac, randomBytes } from "crypto";
 
 /**
  * Generate a signed QR token for a user
- * Format: base64url(payload).signature16
+ * Format: base64url(payload).signature
  * Payload: userId:timestamp:randomPart
  */
 export function generateQrToken(userId: string): string {
-    const secret = process.env.QR_SECRET || "default-secret-change-me";
+    const secret = process.env.QR_SECRET;
+    if (!secret) {
+        throw new Error("QR_SECRET environment variable is required");
+    }
+    if (secret.length < 32) {
+        throw new Error("QR_SECRET must be at least 32 characters");
+    }
     const timestamp = Date.now().toString();
     const randomPart = randomBytes(16).toString("hex");
     const payload = `${userId}:${timestamp}:${randomPart}`;
-    const signature = createHash("sha256")
-        .update(`${payload}:${secret}`)
-        .digest("hex")
-        .slice(0, 16);
+    const signature = createHmac("sha256", secret)
+        .update(payload)
+        .digest("hex");
     return `${Buffer.from(payload).toString("base64url")}.${signature}`;
 }
 

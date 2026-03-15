@@ -101,7 +101,7 @@ export default function TicketCard({ user, guilds }: TicketCardProps) {
 
             // Download
             const link = document.createElement("a");
-            link.download = `ajmun-ticket-${user.discordUserId}.png`;
+            link.download = "ajmun-ticket.png";
             link.href = canvas.toDataURL("image/png");
             link.click();
         } catch (error) {

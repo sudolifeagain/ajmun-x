@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { createHash } from "crypto";
+import { createHmac } from "crypto";
 import { jwtVerify, SignJWT } from "jose";
 import prisma from "./prisma";
 
@@ -89,7 +89,14 @@ export async function getSession(): Promise<User | null> {
 
 export function verifyQrToken(token: string): { valid: boolean; userId?: string } {
     try {
-        const secret = process.env.QR_SECRET || "default-secret-change-me";
+        const secret = process.env.QR_SECRET;
+        if (!secret) {
+            throw new Error("QR_SECRET environment variable is required");
+        }
+        if (secret.length < 32) {
+            throw new Error("QR_SECRET must be at least 32 characters");
+        }
+
         const [payloadBase64, signature] = token.split(".");
 
         if (!payloadBase64 || !signature) {
@@ -100,10 +107,9 @@ export function verifyQrToken(token: string): { valid: boolean; userId?: string 
         const [userId] = payload.split(":");
 
         // Verify signature
-        const expectedSignature = createHash("sha256")
-            .update(`${payload}:${secret}`)
-            .digest("hex")
-            .slice(0, 16);
+        const expectedSignature = createHmac("sha256", secret)
+            .update(payload)
+            .digest("hex");
 
         if (signature !== expectedSignature) {
             return { valid: false };
