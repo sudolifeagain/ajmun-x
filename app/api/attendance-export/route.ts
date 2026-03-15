@@ -1,19 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import prisma from "@/app/lib/prisma";
 import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from "@/app/lib/rateLimit";
 
 /**
  * Attendance Export API for Google Sheets integration
- * 
+ *
  * Authentication:
  *   - Authorization: Bearer <API_KEY> (recommended)
  *   - Or apiKey query param (deprecated, for backward compatibility)
- * 
+ *
  * Query params:
  *   - date: YYYY-MM-DD (default: today) - for single day mode
  *   - dates: comma-separated dates (e.g., "2025-12-27,2025-12-28,2025-12-29,2025-12-30") - for multi-day mode
  *   - guildId: specific guild ID (optional)
- * 
+ *
  * Returns:
  *   - members: all members with attendance status (includes attendanceByDate for multi-day)
  *   - guilds: list of guilds
@@ -33,11 +34,19 @@ export async function GET(request: NextRequest) {
     } else {
         // Fallback to query param for backward compatibility
         apiKey = searchParams.get("apiKey");
+        if (apiKey) {
+            console.warn("[DEPRECATED] API key via query parameter is deprecated. Use Authorization: Bearer header instead.");
+        }
     }
 
-    // API key authentication
+    // API key authentication with timing-safe comparison
     const expectedKey = process.env.EXPORT_API_KEY;
-    if (!expectedKey || apiKey !== expectedKey) {
+    if (
+        !expectedKey ||
+        !apiKey ||
+        Buffer.byteLength(apiKey) !== Buffer.byteLength(expectedKey) ||
+        !timingSafeEqual(Buffer.from(apiKey), Buffer.from(expectedKey))
+    ) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -57,6 +66,15 @@ export async function GET(request: NextRequest) {
         const dates = multiDates
             ? multiDates.split(",").map(d => d.trim())
             : [singleDate || getTodayJST()];
+
+        // Validate dates: maximum 31 and YYYY-MM-DD format
+        if (dates.length > 31) {
+            return NextResponse.json({ error: "Maximum 31 dates allowed" }, { status: 400 });
+        }
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dates.every(d => dateRegex.test(d))) {
+            return NextResponse.json({ error: "Invalid date format. Use YYYY-MM-DD" }, { status: 400 });
+        }
 
         // Get attendance logs for all requested dates
         const attendanceLogs = await prisma.attendanceLog.findMany({
@@ -94,7 +112,7 @@ export async function GET(request: NextRequest) {
                         dmSendLogs: {
                             where: { sendType: "qrcode" },
                             orderBy: { createdAt: "desc" },
-                            // take: 1, // Remove limit to get all logs
+                            take: 10,
                         },
                     },
                 },

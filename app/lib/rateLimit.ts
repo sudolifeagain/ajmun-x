@@ -1,6 +1,11 @@
 /**
  * Simple in-memory rate limiter
- * 
+ *
+ * Limitations:
+ * - In-memory storage: rate limit state is lost on server restart
+ * - Not shared across instances: each process maintains its own counters
+ * - Fixed window algorithm: susceptible to burst traffic at window boundaries
+ *
  * For production with multiple instances, use Redis-based rate limiting.
  * This implementation is suitable for single-server deployments.
  */
@@ -38,7 +43,7 @@ export interface RateLimitResult {
 
 /**
  * Check if a request is allowed under rate limiting
- * 
+ *
  * @param key - Unique identifier for the client (IP, API key, etc.)
  * @param config - Rate limit configuration
  * @returns Rate limit result

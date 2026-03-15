@@ -1,21 +1,16 @@
 import { cookies } from "next/headers";
-import { createHash } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 import { jwtVerify, SignJWT } from "jose";
 import prisma from "./prisma";
-
-interface SessionPayload {
-    userId: string;
-    exp: number;
-}
 
 // Use inferred type from Prisma
 type User = NonNullable<Awaited<ReturnType<typeof prisma.user.findUnique>>>;
 
 // Get the secret key for JWT signing
 function getJwtSecret(): Uint8Array {
-    const secret = process.env.SESSION_SECRET || process.env.QR_SECRET;
+    const secret = process.env.SESSION_SECRET;
     if (!secret) {
-        throw new Error("SESSION_SECRET or QR_SECRET environment variable is required");
+        throw new Error("SESSION_SECRET environment variable is required");
     }
     return new TextEncoder().encode(secret);
 }
@@ -34,7 +29,6 @@ export async function createSessionToken(userId: string): Promise<string> {
 
 /**
  * Verify and get session from cookie
- * Supports both new JWT tokens and legacy Base64 tokens for backward compatibility
  */
 export async function getSession(): Promise<User | null> {
     const cookieStore = await cookies();
@@ -46,39 +40,16 @@ export async function getSession(): Promise<User | null> {
 
     const token = sessionCookie.value;
 
-    // Try JWT verification first (new format contains dots and starts with "ey")
-    if (token.includes(".") && token.startsWith("ey")) {
-        try {
-            const { payload } = await jwtVerify(token, getJwtSecret());
-            const userId = payload.userId as string;
-
-            if (!userId) {
-                return null;
-            }
-
-            const user = await prisma.user.findUnique({
-                where: { discordUserId: userId },
-            });
-
-            return user;
-        } catch {
-            return null;
-        }
-    }
-
-    // Fallback: Legacy Base64 token (for existing sessions during migration)
     try {
-        const payload: SessionPayload = JSON.parse(
-            Buffer.from(token, "base64url").toString()
-        );
+        const { payload } = await jwtVerify(token, getJwtSecret());
+        const userId = payload.userId as string;
 
-        // Check expiration
-        if (Date.now() > payload.exp) {
+        if (!userId) {
             return null;
         }
 
         const user = await prisma.user.findUnique({
-            where: { discordUserId: payload.userId },
+            where: { discordUserId: userId },
         });
 
         return user;
@@ -87,9 +58,16 @@ export async function getSession(): Promise<User | null> {
     }
 }
 
+/** Maximum QR token age in milliseconds (30 days) */
+const QR_TOKEN_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
 export function verifyQrToken(token: string): { valid: boolean; userId?: string } {
     try {
-        const secret = process.env.QR_SECRET || "default-secret-change-me";
+        const secret = process.env.QR_SECRET;
+        if (!secret) {
+            throw new Error("QR_SECRET environment variable is required");
+        }
+
         const [payloadBase64, signature] = token.split(".");
 
         if (!payloadBase64 || !signature) {
@@ -97,15 +75,24 @@ export function verifyQrToken(token: string): { valid: boolean; userId?: string 
         }
 
         const payload = Buffer.from(payloadBase64, "base64url").toString();
-        const [userId] = payload.split(":");
+        const [userId, timestamp] = payload.split(":");
 
-        // Verify signature
-        const expectedSignature = createHash("sha256")
-            .update(`${payload}:${secret}`)
+        // Check token expiry (30 days)
+        const tokenTime = parseInt(timestamp, 10);
+        if (isNaN(tokenTime) || Date.now() - tokenTime > QR_TOKEN_MAX_AGE_MS) {
+            return { valid: false };
+        }
+
+        // Verify signature using HMAC
+        const expectedSignature = createHmac("sha256", secret)
+            .update(payload)
             .digest("hex")
-            .slice(0, 16);
+            .slice(0, 32);
 
-        if (signature !== expectedSignature) {
+        // Timing-safe comparison
+        const sigBuf = Buffer.from(signature, "utf8");
+        const expectedBuf = Buffer.from(expectedSignature, "utf8");
+        if (sigBuf.length !== expectedBuf.length || !timingSafeEqual(sigBuf, expectedBuf)) {
             return { valid: false };
         }
 
