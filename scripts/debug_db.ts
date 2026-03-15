@@ -5,7 +5,7 @@ import path from "path";
 async function main() {
     console.log("=== Database Debug Info ===");
     console.log("CWD:", process.cwd());
-    console.log("DATABASE_URL (env):", process.env.DATABASE_URL);
+    console.log("DATABASE_URL (env):", process.env.DATABASE_URL ? "[SET]" : "[NOT SET]");
 
     try {
         // === Guild Overview ===

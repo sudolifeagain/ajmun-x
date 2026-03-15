@@ -15,6 +15,7 @@ import {
 import prisma from "../../app/lib/prisma";
 import logger from "../utils/discordLogger";
 import { hasAdminPermission } from "../services/permissionService";
+import { validateSnowflakeList } from "../utils/validation";
 
 // ============================================================================
 // Helper Functions
@@ -134,6 +135,15 @@ async function handleAdminRoles(
 ): Promise<void> {
     const roles = interaction.options.getString("roles", true);
 
+    const validation = validateSnowflakeList(roles);
+    if (!validation.valid) {
+        await interaction.reply({
+            content: `❌ 無効なID形式です: \`${validation.invalid.join(", ")}\``,
+            ephemeral: true,
+        });
+        return;
+    }
+
     await prisma.systemConfig.upsert({
         where: { key: "admin_role_ids" },
         update: { value: roles },
@@ -159,6 +169,15 @@ async function handleStaffRoles(
 ): Promise<void> {
     const roles = interaction.options.getString("roles", true);
 
+    const validation = validateSnowflakeList(roles);
+    if (!validation.valid) {
+        await interaction.reply({
+            content: `❌ 無効なID形式です: \`${validation.invalid.join(", ")}\``,
+            ephemeral: true,
+        });
+        return;
+    }
+
     await prisma.systemConfig.upsert({
         where: { key: "staff_role_ids" },
         update: { value: roles },
@@ -183,6 +202,15 @@ async function handleSecretaryRoles(
     interaction: ChatInputCommandInteraction
 ): Promise<void> {
     const roles = interaction.options.getString("roles", true);
+
+    const validation = validateSnowflakeList(roles);
+    if (!validation.valid) {
+        await interaction.reply({
+            content: `❌ 無効なID形式です: \`${validation.invalid.join(", ")}\``,
+            ephemeral: true,
+        });
+        return;
+    }
 
     await prisma.systemConfig.upsert({
         where: { key: "secretary_role_ids" },
@@ -211,6 +239,26 @@ async function handleOrganizerRoles(
 ): Promise<void> {
     const newRoles = interaction.options.getString("roles", true);
     const guildIds = interaction.options.getString("guild_ids");
+
+    const rolesValidation = validateSnowflakeList(newRoles);
+    if (!rolesValidation.valid) {
+        await interaction.reply({
+            content: `❌ 無効なロールID形式です: \`${rolesValidation.invalid.join(", ")}\``,
+            ephemeral: true,
+        });
+        return;
+    }
+
+    if (guildIds) {
+        const guildValidation = validateSnowflakeList(guildIds);
+        if (!guildValidation.valid) {
+            await interaction.reply({
+                content: `❌ 無効なサーバーID形式です: \`${guildValidation.invalid.join(", ")}\``,
+                ephemeral: true,
+            });
+            return;
+        }
+    }
 
     // If guild_ids is provided, create role-guild mapping
     if (guildIds) {
@@ -359,6 +407,15 @@ export async function handleSetup(
         if (!hasPermission) {
             await interaction.reply({
                 content: "❌ このコマンドはbot管理者ロール保持者のみ実行可能です",
+                ephemeral: true,
+            });
+            return;
+        }
+    } else {
+        // No admin roles configured: require Discord Administrator permission
+        if (!interaction.memberPermissions?.has("Administrator")) {
+            await interaction.reply({
+                content: "❌ bot管理者ロールが未設定のため、Discord管理者権限が必要です",
                 ephemeral: true,
             });
             return;

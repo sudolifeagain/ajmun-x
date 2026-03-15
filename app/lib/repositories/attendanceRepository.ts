@@ -188,7 +188,7 @@ export async function getAbsentUserIds(
 
 /**
  * Check in a user (create attendance log)
- * Returns success status and whether this is a new check-in
+ * Uses create-and-catch to avoid TOCTOU race conditions
  */
 export async function checkInUser(
     userId: string,
@@ -198,31 +198,35 @@ export async function checkInUser(
 ): Promise<CheckInResult> {
     const today = getTodayJST();
 
-    // Check for existing log
-    const existing = await findAttendanceLog(userId, today);
-    if (existing.exists) {
+    try {
+        // Attempt to create directly; unique constraint prevents duplicates
+        await prisma.attendanceLog.create({
+            data: {
+                discordUserId: userId,
+                primaryGuildId: guildId,
+                attribute,
+                checkInDate: today,
+                checkInMethod: method,
+            },
+        });
+
         return {
-            success: false,
-            isNewCheckIn: false,
-            existingMethod: existing.method,
+            success: true,
+            isNewCheckIn: true,
         };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+        // Prisma P2002 = unique constraint violation (already checked in)
+        if (error?.code === "P2002") {
+            const existing = await findAttendanceLog(userId, today);
+            return {
+                success: false,
+                isNewCheckIn: false,
+                existingMethod: existing.method,
+            };
+        }
+        throw error;
     }
-
-    // Create new attendance log
-    await prisma.attendanceLog.create({
-        data: {
-            discordUserId: userId,
-            primaryGuildId: guildId,
-            attribute,
-            checkInDate: today,
-            checkInMethod: method,
-        },
-    });
-
-    return {
-        success: true,
-        isNewCheckIn: true,
-    };
 }
 
 // ============================================================================
