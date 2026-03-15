@@ -479,7 +479,7 @@ export async function handleAttendanceAutocomplete(interaction: AutocompleteInte
         const whereClause: Prisma.GuildWhereInput = {
             isTargetGuild: true,
             guildName: { contains: searchText },
-            ...(organizerGuildIds.length > 0 && { guildId: { in: organizerGuildIds } }),
+            ...(organizerGuildIds.length > 0 ? { guildId: { in: organizerGuildIds } } : {}),
         };
 
         try {
@@ -520,13 +520,13 @@ export async function handleAttendanceAutocomplete(interaction: AutocompleteInte
                         },
                     },
                 ],
-                ...(organizerGuildIds.length > 0 && {
+                ...(organizerGuildIds.length > 0 ? {
                     guildMemberships: {
                         some: {
                             guildId: { in: organizerGuildIds },
                         },
                     },
-                }),
+                } : {}),
             };
 
             const users = await prisma.user.findMany({

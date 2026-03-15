@@ -28,6 +28,7 @@ export default async function Home({ searchParams }: Props) {
                 alt="ピ逃げちゃん！ロゴ"
                 width={96}
                 height={96}
+                priority
                 className="h-24 w-24 rounded-full shadow-lg"
               />
             </div>
