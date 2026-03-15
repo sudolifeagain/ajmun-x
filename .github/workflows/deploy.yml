@@ -49,7 +49,7 @@ jobs:
           SSH_USER: ${{ secrets.OCI_SSH_USER }}
           APP_DIR: ${{ vars.APP_DIR }}
         run: |
-          ssh "${SSH_USER}@${SSH_HOST}" "mkdir -p '${APP_DIR}/build' '${APP_DIR}/data' && chmod 777 '${APP_DIR}/data'"
+          ssh "${SSH_USER}@${SSH_HOST}" "mkdir -p '${APP_DIR}/build' '${APP_DIR}/data' && chmod 750 '${APP_DIR}/data'"
           tar czf - \
             --exclude='node_modules' \
             --exclude='.next' \
@@ -73,6 +73,7 @@ jobs:
         run: |
           ssh "${SSH_USER}@${SSH_HOST}" "cd '${APP_DIR}/build' && \
             docker build -t '${SERVICE_NAME}' . && \
+            (docker tag '${SERVICE_NAME}' '${SERVICE_NAME}:prev' 2>/dev/null || true) && \
             (docker stop '${SERVICE_NAME}' 2>/dev/null || true) && \
             (docker rm '${SERVICE_NAME}' 2>/dev/null || true) && \
             docker run -d \
@@ -122,11 +123,16 @@ jobs:
           ssh "${SSH_USER}@${SSH_HOST}" "docker logs '${SERVICE_NAME}' --tail 50"
           exit 1
 
+      - name: Cleanup SSH
+        if: always()
+        run: rm -f ~/.ssh/id_ed25519
+
       - name: Notify failure to Discord
-        if: failure() && secrets.DISCORD_WEBHOOK_URL != ''
+        if: failure()
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then exit 0; fi
           curl -s -X POST "$DISCORD_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
             -d "{\"content\":\"**Deploy failed** on \`main\` (${GITHUB_SHA::7})\\nRun: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\"}"
