@@ -77,7 +77,7 @@ export async function findAttendanceLog(
 
     return {
         exists: true,
-        method: ((log as any).checkInMethod || "scan") as CheckInMethod,
+        method: (log.checkInMethod || "scan") as CheckInMethod,
     };
 }
 
@@ -104,7 +104,7 @@ export async function countAttendance(
 export async function getAttendanceSummary(
     filter: AttendanceFilter = {}
 ): Promise<AttendanceSummary> {
-    const { date = getTodayJST(), attribute, guildIds } = filter;
+    const { attribute, guildIds } = filter;
 
     const presentCount = await countAttendance(filter);
 
@@ -150,7 +150,7 @@ export async function getPresentUsers(
         discordUserId: log.discordUserId,
         checkInDate: log.checkInDate,
         checkInTimestamp: log.checkInTimestamp,
-        checkInMethod: (log as any).checkInMethod || "scan",
+        checkInMethod: log.checkInMethod || "scan",
         attribute: log.attribute,
         primaryGuildId: log.primaryGuildId,
         user: {
@@ -216,7 +216,7 @@ export async function checkInUser(
             attribute,
             checkInDate: today,
             checkInMethod: method,
-        } as any, // Type assertion for checkInMethod until prisma regenerated
+        },
     });
 
     return {
@@ -254,7 +254,7 @@ export async function getAttendanceByDateRange(
         }
         attendanceMap.get(log.discordUserId)!.set(log.checkInDate, {
             timestamp: log.checkInTimestamp,
-            method: (log as any).checkInMethod || "scan",
+            method: log.checkInMethod || "scan",
         });
     }
 

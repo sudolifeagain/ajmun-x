@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/app/lib/session";
+import Image from "next/image";
 import Link from "next/link";
 import DiscordLoginButton from "./components/DiscordLoginButton";
 
@@ -22,9 +23,11 @@ export default async function Home({ searchParams }: Props) {
         <div className="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur-xl">
           <div className="mb-8 text-center">
             <div className="mb-6 flex justify-center">
-              <img
+              <Image
                 src="/logo.png"
                 alt="ピ逃げちゃん！ロゴ"
+                width={96}
+                height={96}
                 className="h-24 w-24 rounded-full shadow-lg"
               />
             </div>

@@ -345,7 +345,7 @@ async function handleSendQr(
 
         // Send QR codes with progress updates
         let lastProgressUpdate = 0;
-        const result = await sendQRCodesToUsers(targetUsers, client, async (current, total, sendResult) => {
+        const result = await sendQRCodesToUsers(targetUsers, client, async (current, total) => {
             // Update progress every 10 users
             if (current - lastProgressUpdate >= 10 || current === total) {
                 lastProgressUpdate = current;

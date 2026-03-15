@@ -102,7 +102,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ScanRespo
         const today = getTodayJST();
 
         // Check for existing attendance log today
-        const { exists: alreadyCheckedIn, method: existingMethod } = await findAttendanceLog(userId, today);
+        const { exists: alreadyCheckedIn } = await findAttendanceLog(userId, today);
 
         // Determine primary guild based on user's attribute
         const memberships = user.guildMemberships;

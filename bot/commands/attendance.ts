@@ -1,14 +1,13 @@
 import { ChatInputCommandInteraction, AutocompleteInteraction, EmbedBuilder, MessageFlags } from "discord.js";
+import { Prisma } from "@prisma/client";
 import { prisma, getTodayJST, getAttributeLabel } from "../utils";
 import { isValidDateString } from "../../lib/shared/date";
 import { getOrganizerGuildIds } from "../services";
 import logger from "../../app/lib/discordLogger";
 import {
-    countAttendance,
     getAttendanceSummary,
     findAttendanceLog,
     checkInUser,
-    type CheckInMethod,
 } from "../../app/lib/repositories/attendanceRepository";
 // ============================================================================
 // Constants
@@ -477,15 +476,11 @@ export async function handleAttendanceAutocomplete(interaction: AutocompleteInte
         }
 
         const searchText = focusedOption.value;
-        const whereClause: any = {
+        const whereClause: Prisma.GuildWhereInput = {
             isTargetGuild: true,
             guildName: { contains: searchText },
+            ...(organizerGuildIds.length > 0 && { guildId: { in: organizerGuildIds } }),
         };
-
-        // If not empty array (admin/staff), restrict to specific guilds
-        if (organizerGuildIds.length > 0) {
-            whereClause.guildId = { in: organizerGuildIds };
-        }
 
         try {
             const guilds = await prisma.guild.findMany({
@@ -513,7 +508,7 @@ export async function handleAttendanceAutocomplete(interaction: AutocompleteInte
 
         try {
             // Build where clause based on permissions
-            const whereClause: any = {
+            const whereClause: Prisma.UserWhereInput = {
                 OR: [
                     { globalName: { contains: searchText } },
                     { discordUserId: { contains: searchText } },
@@ -525,16 +520,14 @@ export async function handleAttendanceAutocomplete(interaction: AutocompleteInte
                         },
                     },
                 ],
-            };
-
-            // If organizer (not staff/admin), filter by allowed guilds
-            if (organizerGuildIds.length > 0) {
-                whereClause.guildMemberships = {
-                    some: {
-                        guildId: { in: organizerGuildIds },
+                ...(organizerGuildIds.length > 0 && {
+                    guildMemberships: {
+                        some: {
+                            guildId: { in: organizerGuildIds },
+                        },
                     },
-                };
-            }
+                }),
+            };
 
             const users = await prisma.user.findMany({
                 where: whereClause,
