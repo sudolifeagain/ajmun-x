@@ -4,6 +4,7 @@ prisma/prod.db
 *.exe
 .git
 .env
+.env.*
 temp/
 backups/
 docs/

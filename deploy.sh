@@ -6,7 +6,8 @@ APP_DIR="/opt/ajmun37"
 SERVICE_NAME="ajmun37"
 
 echo "==> Syncing files..."
-ssh "$REMOTE" "mkdir -p '${APP_DIR}/build' 2>/dev/null || true"
+# NOTE: .env の DATABASE_URL は file:/app/data/prod.db に設定すること
+ssh "$REMOTE" "mkdir -p '${APP_DIR}/build' '${APP_DIR}/data' 2>/dev/null || true"
 tar czf - --exclude='node_modules' --exclude='.next' --exclude='prisma/prod.db' --exclude='*.exe' . | \
   ssh "$REMOTE" "tar xzf - -C '${APP_DIR}/build/'"
 
@@ -28,7 +29,7 @@ ssh "$REMOTE" "cd '${APP_DIR}/build' && docker build -t '${SERVICE_NAME}' . && \
     --network tui-net \
     -p 127.0.0.1:3000:3000 \
     --env-file '${APP_DIR}/.env' \
-    -v '${APP_DIR}/data/prod.db:/app/prisma/prod.db' \
+    -v '${APP_DIR}/data:/app/data' \
     --log-opt max-size=10m \
     --log-opt max-file=3 \
     '${SERVICE_NAME}'"
