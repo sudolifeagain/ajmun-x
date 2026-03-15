@@ -138,6 +138,20 @@ async function handleConfig(interaction: ChatInputCommandInteraction): Promise<v
     const key = interaction.options.getString("key", true);
     const value = interaction.options.getString("value", true);
 
+    // Validate Snowflake IDs for role/user/guild config keys
+    if (key.endsWith("_role_ids") || key.endsWith("_user_ids") || key.endsWith("_guild_ids")) {
+        const ids = value.split(",").map((id) => id.trim()).filter(Boolean);
+        const snowflakeRegex = /^\d{17,20}$/;
+        const invalidIds = ids.filter((id) => !snowflakeRegex.test(id));
+        if (invalidIds.length > 0) {
+            await interaction.reply({
+                content: `❌ 無効な Snowflake ID が含まれています: ${invalidIds.map((id) => `\`${id}\``).join(", ")}`,
+                ephemeral: true,
+            });
+            return;
+        }
+    }
+
     const existingConfig = await prisma.systemConfig.findUnique({ where: { key } });
     const isUpdate = !!existingConfig;
 
