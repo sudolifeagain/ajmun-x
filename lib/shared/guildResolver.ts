@@ -75,8 +75,7 @@ async function resolveOrganizerGuild(memberships: GuildMembershipInfo[]): Promis
 
     // Find OrganizerRoleMapping for any of their roles
     const prisma = await getPrisma();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const roleMapping = await (prisma as any).organizerRoleMapping?.findFirst({
+    const roleMapping = await prisma.organizerRoleMapping.findFirst({
         where: {
             roleId: { in: allRoleIds },
         },
