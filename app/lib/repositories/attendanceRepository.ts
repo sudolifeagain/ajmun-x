@@ -77,6 +77,7 @@ export async function findAttendanceLog(
 
     return {
         exists: true,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         method: ((log as any).checkInMethod || "scan") as CheckInMethod,
     };
 }
@@ -150,6 +151,7 @@ export async function getPresentUsers(
         discordUserId: log.discordUserId,
         checkInDate: log.checkInDate,
         checkInTimestamp: log.checkInTimestamp,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         checkInMethod: (log as any).checkInMethod || "scan",
         attribute: log.attribute,
         primaryGuildId: log.primaryGuildId,
@@ -207,6 +209,7 @@ export async function checkInUser(
                 attribute,
                 checkInDate: today,
                 checkInMethod: method,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any, // Type assertion for checkInMethod until prisma regenerated
         });
 
@@ -214,6 +217,7 @@ export async function checkInUser(
             success: true,
             isNewCheckIn: true,
         };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
         // Prisma P2002 = unique constraint violation (already checked in)
         if (error?.code === "P2002") {
@@ -257,6 +261,7 @@ export async function getAttendanceByDateRange(
         }
         attendanceMap.get(log.discordUserId)!.set(log.checkInDate, {
             timestamp: log.checkInTimestamp,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             method: (log as any).checkInMethod || "scan",
         });
     }
