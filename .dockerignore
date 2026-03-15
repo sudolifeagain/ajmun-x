@@ -1,0 +1,9 @@
+node_modules
+.next
+prisma/prod.db
+*.exe
+.git
+.env
+temp/
+backups/
+docs/
