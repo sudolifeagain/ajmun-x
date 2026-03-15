@@ -1,0 +1,132 @@
+name: Deploy
+
+# CI 成功後に自動デプロイ（main ブランチのみ）
+# OIDC について: 現時点では SSH ベースのデプロイのため OIDC は適用外。
+# OCI は OIDC フェデレーションをサポートしているが、自己管理インスタンスへの
+# SSH デプロイには直接使えない。将来的に OCI API 経由のインスタンス管理に
+# 移行する場合に検討。
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false  # デプロイ中の別デプロイによるコンテナ停止を防止
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
+    environment: production
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.OCI_SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          echo "${{ secrets.OCI_SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Sync files
+        env:
+          SSH_HOST: ${{ secrets.OCI_SSH_HOST }}
+          SSH_USER: ${{ secrets.OCI_SSH_USER }}
+          APP_DIR: ${{ vars.APP_DIR }}
+        run: |
+          ssh "${SSH_USER}@${SSH_HOST}" "mkdir -p '${APP_DIR}/build' '${APP_DIR}/data' && chmod 777 '${APP_DIR}/data'"
+          tar czf - \
+            --exclude='node_modules' \
+            --exclude='.next' \
+            --exclude='prisma/prod.db' \
+            --exclude='*.exe' \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='temp' \
+            --exclude='backups' \
+            --exclude='docs' \
+            . | ssh "${SSH_USER}@${SSH_HOST}" "tar xzf - -C '${APP_DIR}/build/'"
+
+      - name: Build and deploy
+        env:
+          SSH_HOST: ${{ secrets.OCI_SSH_HOST }}
+          SSH_USER: ${{ secrets.OCI_SSH_USER }}
+          APP_DIR: ${{ vars.APP_DIR }}
+          SERVICE_NAME: ${{ vars.SERVICE_NAME }}
+        run: |
+          ssh "${SSH_USER}@${SSH_HOST}" "cd '${APP_DIR}/build' && \
+            docker build -t '${SERVICE_NAME}' . && \
+            (docker stop '${SERVICE_NAME}' 2>/dev/null || true) && \
+            (docker rm '${SERVICE_NAME}' 2>/dev/null || true) && \
+            docker run -d \
+              --name '${SERVICE_NAME}' \
+              --restart unless-stopped \
+              --read-only \
+              --security-opt no-new-privileges:true \
+              --cap-drop ALL \
+              --memory 512m \
+              --memory-swap 512m \
+              --cpus 1.0 \
+              --pids-limit 128 \
+              --tmpfs /tmp:rw,noexec,nosuid,size=50m \
+              --network tui-net \
+              -p 127.0.0.1:3000:3000 \
+              --env-file '${APP_DIR}/.env' \
+              -v '${APP_DIR}/data:/app/data' \
+              --log-opt max-size=10m \
+              --log-opt max-file=3 \
+              '${SERVICE_NAME}'"
+
+      - name: Health check
+        env:
+          SSH_HOST: ${{ secrets.OCI_SSH_HOST }}
+          SSH_USER: ${{ secrets.OCI_SSH_USER }}
+          SERVICE_NAME: ${{ vars.SERVICE_NAME }}
+        run: |
+          # コンテナの Running 状態確認
+          STATUS=$(ssh "${SSH_USER}@${SSH_HOST}" "docker inspect -f '{{.State.Running}}' '${SERVICE_NAME}'")
+          if [ "$STATUS" != "true" ]; then
+            echo "::error::Container is not running"
+            ssh "${SSH_USER}@${SSH_HOST}" "docker logs '${SERVICE_NAME}' --tail 50"
+            exit 1
+          fi
+
+          # HTTP 応答チェック（5回リトライ、計30秒）
+          for i in 1 2 3 4 5; do
+            HTTP_CODE=$(ssh "${SSH_USER}@${SSH_HOST}" "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/ || echo '000'")
+            if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 400 ]; then
+              echo "Health check passed (HTTP ${HTTP_CODE})"
+              exit 0
+            fi
+            echo "Attempt ${i}/5: HTTP ${HTTP_CODE}, retrying in 6s..."
+            sleep 6
+          done
+          echo "::error::Health check failed after 5 attempts"
+          ssh "${SSH_USER}@${SSH_HOST}" "docker logs '${SERVICE_NAME}' --tail 50"
+          exit 1
+
+      - name: Notify failure to Discord
+        if: failure() && secrets.DISCORD_WEBHOOK_URL != ''
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          curl -s -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "{\"content\":\"**Deploy failed** on \`main\` (${GITHUB_SHA::7})\\nRun: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\"}"
