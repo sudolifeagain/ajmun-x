@@ -4,12 +4,25 @@ Event entry management system for Model United Nations conferences with Discord 
 
 ## Features
 
+<table>
+<tr>
+<td width="65%">
+
 - **Discord OAuth Authentication**: Users log in with Discord to receive their QR code
 - **QR Code Distribution**: Mass distribution via Bot DM or Web login
 - **Reception Scanner**: Cloudflare Access protected staff-only scanning page
 - **Attendance Management Bot**: Check and manage attendance via Slash commands
 - **Multi-Server Support**: Multiple conference servers + operations server
 - **Google Sheets Sync**: Automatic attendance data synchronization
+
+</td>
+<td width="35%">
+
+<img src="public/images/top_site.jpg" alt="AJMUN Website" height="350">
+
+</td>
+</tr>
+</table>
 
 ## Bot Commands
 
