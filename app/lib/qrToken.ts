@@ -9,7 +9,7 @@ import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 
 /**
  * Generate a signed QR token for a user
- * Format: base64url(payload).signature32
+ * Format: base64url(payload).signature
  * Payload: userId:timestamp:randomPart
  */
 export function generateQrToken(userId: string): string {
@@ -17,13 +17,15 @@ export function generateQrToken(userId: string): string {
     if (!secret) {
         throw new Error("QR_SECRET environment variable is required");
     }
+    if (secret.length < 32) {
+        throw new Error("QR_SECRET must be at least 32 characters");
+    }
     const timestamp = Date.now().toString();
     const randomPart = randomBytes(16).toString("hex");
     const payload = `${userId}:${timestamp}:${randomPart}`;
     const signature = createHmac("sha256", secret)
         .update(payload)
-        .digest("hex")
-        .slice(0, 32);
+        .digest("hex");
     return `${Buffer.from(payload).toString("base64url")}.${signature}`;
 }
 
@@ -66,8 +68,7 @@ export function verifyQrToken(token: string): { valid: boolean; userId?: string 
         // Verify signature using HMAC
         const expectedSignature = createHmac("sha256", secret)
             .update(payload)
-            .digest("hex")
-            .slice(0, 32);
+            .digest("hex");
 
         // Timing-safe comparison
         const sigBuf = Buffer.from(signature, "utf8");
