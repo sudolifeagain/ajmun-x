@@ -12,13 +12,13 @@
     "slides:preview": "marp -c marp.config.js -p docs/slides"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.1",
+    "@prisma/client": "^6.19.2",
     "@types/qrcode": "^1.5.6",
     "discord.js": "^14.25.1",
     "html5-qrcode": "^2.3.8",
     "jose": "^6.2.1",
     "next": "16.1.6",
-    "prisma": "^6.19.1",
+    "prisma": "^6.19.2",
     "qrcode": "^1.5.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
