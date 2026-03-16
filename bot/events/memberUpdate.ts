@@ -15,7 +15,7 @@ export async function handleMemberUpdate(
         where: { guildId: newMember.guild.id },
     });
 
-    if (!guild?.isTargetGuild) return;
+    if (!guild?.isTargetGuild && !guild?.isOperationServer) return;
 
     const roleIds = newMember.roles.cache.map((r) => r.id);
     const avatarUrl = newMember.displayAvatarURL();

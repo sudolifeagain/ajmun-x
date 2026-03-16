@@ -101,7 +101,7 @@ export default function TicketCard({ user, guilds }: TicketCardProps) {
 
             // Download
             const link = document.createElement("a");
-            link.download = `ajmun-ticket-${user.discordUserId}.png`;
+            link.download = "ajmun-ticket.png";
             link.href = canvas.toDataURL("image/png");
             link.click();
         } catch (error) {
@@ -236,12 +236,14 @@ export default function TicketCard({ user, guilds }: TicketCardProps) {
 
             {/* Logout */}
             <div className="mt-4 text-center">
-                <Link
-                    href="/api/auth/logout"
-                    className="text-sm text-slate-400 hover:text-white transition-colors"
-                >
-                    ログアウト
-                </Link>
+                <form method="POST" action="/api/auth/logout">
+                    <button
+                        type="submit"
+                        className="text-sm text-slate-400 hover:text-white transition-colors"
+                    >
+                        ログアウト
+                    </button>
+                </form>
             </div>
 
             {/* Footer Links */}

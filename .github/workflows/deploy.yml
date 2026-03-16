@@ -1,0 +1,214 @@
+name: Deploy
+
+# CI 成功後に自動デプロイ（main ブランチのみ）
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false  # デプロイ中の別デプロイによるコンテナ停止を防止
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
+    environment: production
+    timeout-minutes: 15
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc # v2.15.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: Validate inputs
+        env:
+          APP_DIR: ${{ vars.APP_DIR }}
+          SERVICE_NAME: ${{ vars.SERVICE_NAME }}
+          SSH_PORT: ${{ secrets.OCI_SSH_PORT }}
+        run: |
+          if [[ ! "$APP_DIR" =~ ^/[a-zA-Z0-9/_.-]+$ ]]; then
+            echo "::error::Invalid APP_DIR format: must be an absolute path with safe characters"
+            exit 1
+          fi
+          if [[ ! "$SERVICE_NAME" =~ ^[a-zA-Z0-9_.-]+$ ]]; then
+            echo "::error::Invalid SERVICE_NAME format: must contain only alphanumeric, underscore, dot, hyphen"
+            exit 1
+          fi
+          if [[ ! "$SSH_PORT" =~ ^[0-9]+$ ]]; then
+            echo "::error::Invalid SSH_PORT format: must be numeric"
+            exit 1
+          fi
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.OCI_SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          echo "${{ secrets.OCI_SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Sync files
+        env:
+          SSH_HOST: ${{ secrets.OCI_SSH_HOST }}
+          SSH_USER: ${{ secrets.OCI_SSH_USER }}
+          SSH_PORT: ${{ secrets.OCI_SSH_PORT }}
+          APP_DIR: ${{ vars.APP_DIR }}
+        run: |
+          ssh -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" "mkdir -p '${APP_DIR}/build' '${APP_DIR}/data' && chmod 750 '${APP_DIR}/data'"
+          tar czf - \
+            --exclude='node_modules' \
+            --exclude='.next' \
+            --exclude='prisma/prod.db' \
+            --exclude='*.exe' \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='temp' \
+            --exclude='backups' \
+            --exclude='docs' \
+            . | ssh -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" "tar xzf - -C '${APP_DIR}/build/'"
+
+      - name: Build and deploy
+        env:
+          SSH_HOST: ${{ secrets.OCI_SSH_HOST }}
+          SSH_USER: ${{ secrets.OCI_SSH_USER }}
+          SSH_PORT: ${{ secrets.OCI_SSH_PORT }}
+          APP_DIR: ${{ vars.APP_DIR }}
+          SERVICE_NAME: ${{ vars.SERVICE_NAME }}
+        run: |
+          ssh -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" "cd '${APP_DIR}/build' && \
+            DOCKER_BUILDKIT=1 docker build -t '${SERVICE_NAME}' . && \
+            (docker tag '${SERVICE_NAME}' '${SERVICE_NAME}:prev' 2>/dev/null || true) && \
+            (docker stop '${SERVICE_NAME}' 2>/dev/null || true) && \
+            (docker rm '${SERVICE_NAME}' 2>/dev/null || true) && \
+            docker run -d \
+              --user \"\$(id -u):\$(id -g)\" \
+              --name '${SERVICE_NAME}' \
+              --restart unless-stopped \
+              --read-only \
+              --security-opt no-new-privileges:true \
+              --cap-drop ALL \
+              --memory 512m \
+              --memory-swap 512m \
+              --cpus 1.0 \
+              --pids-limit 128 \
+              --tmpfs /tmp:rw,noexec,nosuid,size=50m \
+              --network tui-net \
+              -p 127.0.0.1:3000:3000 \
+              --env-file '${APP_DIR}/.env' \
+              -v '${APP_DIR}/data:/app/data' \
+              --log-opt max-size=10m \
+              --log-opt max-file=3 \
+              '${SERVICE_NAME}'"
+
+      - name: Health check
+        env:
+          SSH_HOST: ${{ secrets.OCI_SSH_HOST }}
+          SSH_USER: ${{ secrets.OCI_SSH_USER }}
+          SSH_PORT: ${{ secrets.OCI_SSH_PORT }}
+          SERVICE_NAME: ${{ vars.SERVICE_NAME }}
+        run: |
+          # コンテナの Running 状態確認
+          STATUS=$(ssh -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" "docker inspect -f '{{.State.Running}}' '${SERVICE_NAME}'")
+          if [ "$STATUS" != "true" ]; then
+            echo "::error::Container is not running"
+            ssh -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" "docker logs '${SERVICE_NAME}' --tail 50"
+            exit 1
+          fi
+
+          # HTTP 応答チェック（5回リトライ、計30秒）
+          for i in 1 2 3 4 5; do
+            HTTP_CODE=$(ssh -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/ || echo '000'")
+            if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 400 ]; then
+              echo "Health check passed (HTTP ${HTTP_CODE})"
+              exit 0
+            fi
+            echo "Attempt ${i}/5: HTTP ${HTTP_CODE}, retrying in 6s..."
+            sleep 6
+          done
+          echo "::error::Health check failed after 5 attempts"
+          ssh -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" "docker logs '${SERVICE_NAME}' --tail 50"
+          exit 1
+
+      - name: Cleanup old images
+        if: success()
+        env:
+          SSH_HOST: ${{ secrets.OCI_SSH_HOST }}
+          SSH_USER: ${{ secrets.OCI_SSH_USER }}
+          SSH_PORT: ${{ secrets.OCI_SSH_PORT }}
+        run: |
+          ssh -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" "docker image prune -f" || true
+
+      - name: Rollback on failure
+        if: failure()
+        env:
+          SSH_HOST: ${{ secrets.OCI_SSH_HOST }}
+          SSH_USER: ${{ secrets.OCI_SSH_USER }}
+          SSH_PORT: ${{ secrets.OCI_SSH_PORT }}
+          APP_DIR: ${{ vars.APP_DIR }}
+          SERVICE_NAME: ${{ vars.SERVICE_NAME }}
+        run: |
+          echo "::warning::Attempting rollback to previous image..."
+          ssh -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" "\
+            if docker image inspect '${SERVICE_NAME}:prev' >/dev/null 2>&1; then \
+              (docker stop '${SERVICE_NAME}' 2>/dev/null || true) && \
+              (docker rm '${SERVICE_NAME}' 2>/dev/null || true) && \
+              docker run -d \
+                --user \"\$(id -u):\$(id -g)\" \
+                --name '${SERVICE_NAME}' \
+                --restart unless-stopped \
+                --read-only \
+                --security-opt no-new-privileges:true \
+                --cap-drop ALL \
+                --memory 512m \
+                --memory-swap 512m \
+                --cpus 1.0 \
+                --pids-limit 128 \
+                --tmpfs /tmp:rw,noexec,nosuid,size=50m \
+                --network tui-net \
+                -p 127.0.0.1:3000:3000 \
+                --env-file '${APP_DIR}/.env' \
+                -v '${APP_DIR}/data:/app/data' \
+                --log-opt max-size=10m \
+                --log-opt max-file=3 \
+                '${SERVICE_NAME}:prev' && \
+              echo 'Rollback succeeded' || echo '::error::Rollback failed'; \
+            else \
+              echo '::error::No previous image available for rollback'; \
+            fi"
+
+      - name: Cleanup SSH
+        if: always()
+        run: rm -rf ~/.ssh
+
+      - name: Notify Discord
+        if: always()
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then exit 0; fi
+          if [ "${{ job.status }}" = "success" ]; then
+            MSG="**Deploy succeeded** on \`main\` (${GITHUB_SHA::7})"
+          else
+            MSG="**Deploy failed** on \`main\` (${GITHUB_SHA::7})\nRun: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          fi
+          curl -s -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "{\"content\":\"${MSG}\"}"

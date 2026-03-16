@@ -77,7 +77,7 @@ export async function findAttendanceLog(
 
     return {
         exists: true,
-        method: ((log as any).checkInMethod || "scan") as CheckInMethod,
+        method: (log.checkInMethod || "scan") as CheckInMethod,
     };
 }
 
@@ -104,7 +104,7 @@ export async function countAttendance(
 export async function getAttendanceSummary(
     filter: AttendanceFilter = {}
 ): Promise<AttendanceSummary> {
-    const { date = getTodayJST(), attribute, guildIds } = filter;
+    const { attribute, guildIds } = filter;
 
     const presentCount = await countAttendance(filter);
 
@@ -150,7 +150,7 @@ export async function getPresentUsers(
         discordUserId: log.discordUserId,
         checkInDate: log.checkInDate,
         checkInTimestamp: log.checkInTimestamp,
-        checkInMethod: (log as any).checkInMethod || "scan",
+        checkInMethod: log.checkInMethod || "scan",
         attribute: log.attribute,
         primaryGuildId: log.primaryGuildId,
         user: {
@@ -188,7 +188,7 @@ export async function getAbsentUserIds(
 
 /**
  * Check in a user (create attendance log)
- * Returns success status and whether this is a new check-in
+ * Uses create-and-catch to avoid TOCTOU race conditions
  */
 export async function checkInUser(
     userId: string,
@@ -198,31 +198,35 @@ export async function checkInUser(
 ): Promise<CheckInResult> {
     const today = getTodayJST();
 
-    // Check for existing log
-    const existing = await findAttendanceLog(userId, today);
-    if (existing.exists) {
+    try {
+        // Attempt to create directly; unique constraint prevents duplicates
+        await prisma.attendanceLog.create({
+            data: {
+                discordUserId: userId,
+                primaryGuildId: guildId,
+                attribute,
+                checkInDate: today,
+                checkInMethod: method,
+            },
+        });
+
         return {
-            success: false,
-            isNewCheckIn: false,
-            existingMethod: existing.method,
+            success: true,
+            isNewCheckIn: true,
         };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+        // Prisma P2002 = unique constraint violation (already checked in)
+        if (error?.code === "P2002") {
+            const existing = await findAttendanceLog(userId, today);
+            return {
+                success: false,
+                isNewCheckIn: false,
+                existingMethod: existing.method,
+            };
+        }
+        throw error;
     }
-
-    // Create new attendance log
-    await prisma.attendanceLog.create({
-        data: {
-            discordUserId: userId,
-            primaryGuildId: guildId,
-            attribute,
-            checkInDate: today,
-            checkInMethod: method,
-        } as any, // Type assertion for checkInMethod until prisma regenerated
-    });
-
-    return {
-        success: true,
-        isNewCheckIn: true,
-    };
 }
 
 // ============================================================================
@@ -254,7 +258,7 @@ export async function getAttendanceByDateRange(
         }
         attendanceMap.get(log.discordUserId)!.set(log.checkInDate, {
             timestamp: log.checkInTimestamp,
-            method: (log as any).checkInMethod || "scan",
+            method: log.checkInMethod || "scan",
         });
     }
 
