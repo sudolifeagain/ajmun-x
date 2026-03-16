@@ -4,7 +4,7 @@
  * Provides QR code generation and DM sending functionality for the Discord bot.
  */
 
-import { ActionRowBuilder, AttachmentBuilder, ButtonBuilder, ButtonStyle, Client, User, MessageFlags } from "discord.js";
+import { AttachmentBuilder, Client, User, MessageFlags } from "discord.js";
 import QRCode from "qrcode";
 import { prisma } from "../utils";
 import { generateQrToken, isValidQrTokenFormat } from "../../app/lib/qrToken";

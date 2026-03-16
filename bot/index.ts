@@ -20,8 +20,13 @@ import logger from "./utils/discordLogger";
 
 config();
 
-const TOKEN = process.env.DISCORD_BOT_TOKEN!;
-const CLIENT_ID = process.env.DISCORD_CLIENT_ID!;
+const TOKEN = process.env.DISCORD_BOT_TOKEN;
+const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
+
+if (!TOKEN || !CLIENT_ID) {
+    console.error("DISCORD_BOT_TOKEN and DISCORD_CLIENT_ID environment variables are required");
+    process.exit(1);
+}
 
 // Initialize Discord client
 const client = new Client({
