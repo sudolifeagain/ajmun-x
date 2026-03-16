@@ -244,8 +244,13 @@ export async function GET(request: NextRequest) {
         const response = NextResponse.redirect(redirectUrl, { status: 303 });
 
         // Set session cookie using SESSION_COOKIE_NAME
-        const cookieValue = `${SESSION_COOKIE_NAME}=${sessionToken}; Path=/; Max-Age=604800; HttpOnly; Secure; SameSite=Lax`;
-        response.headers.append("Set-Cookie", cookieValue);
+        response.cookies.set(SESSION_COOKIE_NAME, sessionToken, {
+            path: "/",
+            maxAge: 604800,
+            httpOnly: true,
+            secure: true,
+            sameSite: "lax",
+        });
 
         // Delete oauth state cookie
         response.cookies.delete("discord_oauth_state");
