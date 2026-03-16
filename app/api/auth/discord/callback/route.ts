@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import prisma from "@/app/lib/prisma";
 import logger from "@/app/lib/discordLogger";
 import { generateQrToken } from "@/app/lib/qrToken";
 import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from "@/app/lib/rateLimit";
+import { getClientIp } from "@/app/lib/clientIp";
 import { SESSION_COOKIE_NAME } from "@/app/lib/session";
 
 interface DiscordUser {
@@ -12,9 +14,13 @@ interface DiscordUser {
     avatar: string | null;
 }
 
+function deleteStateCookie(response: NextResponse): NextResponse {
+    response.cookies.delete("discord_oauth_state");
+    return response;
+}
 
 export async function GET(request: NextRequest) {
-    const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+    const clientIp = getClientIp(request);
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 
     // Rate limiting
@@ -32,13 +38,20 @@ export async function GET(request: NextRequest) {
     const state = searchParams.get("state");
     const storedState = request.cookies.get("discord_oauth_state")?.value;
 
-    // CSRF check
-    if (!state || state !== storedState) {
+    // CSRF check (timing-safe comparison for consistency)
+    const stateMatch =
+        state &&
+        storedState &&
+        Buffer.byteLength(state) === Buffer.byteLength(storedState) &&
+        timingSafeEqual(Buffer.from(state), Buffer.from(storedState));
+    if (!stateMatch) {
         await logger.warn("ログイン失敗（CSRF検証エラー）", {
             source: "Web (OAuth)",
             details: `IP: ${clientIp}, state不一致またはstate欠落`,
         });
-        return NextResponse.redirect(new URL("/?error=invalid_state", baseUrl));
+        return deleteStateCookie(
+            NextResponse.redirect(new URL("/?error=invalid_state", baseUrl))
+        );
     }
 
     if (!code) {
@@ -46,7 +59,9 @@ export async function GET(request: NextRequest) {
             source: "Web (OAuth)",
             details: `IP: ${clientIp}`,
         });
-        return NextResponse.redirect(new URL("/?error=no_code", baseUrl));
+        return deleteStateCookie(
+            NextResponse.redirect(new URL("/?error=no_code", baseUrl))
+        );
     }
 
     const clientId = process.env.DISCORD_CLIENT_ID;
@@ -58,7 +73,9 @@ export async function GET(request: NextRequest) {
             source: "Web (OAuth)",
             details: "Discord認証情報が設定されていません",
         });
-        return NextResponse.redirect(new URL("/?error=config", baseUrl));
+        return deleteStateCookie(
+            NextResponse.redirect(new URL("/?error=config", baseUrl))
+        );
     }
 
     try {
@@ -76,8 +93,10 @@ export async function GET(request: NextRequest) {
         });
 
         if (!tokenResponse.ok) {
-            console.error("Token exchange failed:", await tokenResponse.text());
-            return NextResponse.redirect(new URL("/?error=token_failed", baseUrl));
+            console.error("Token exchange failed:", tokenResponse.status);
+            return deleteStateCookie(
+                NextResponse.redirect(new URL("/?error=token_failed", baseUrl))
+            );
         }
 
         const tokenData = await tokenResponse.json();
@@ -89,10 +108,29 @@ export async function GET(request: NextRequest) {
         });
 
         if (!userResponse.ok) {
-            return NextResponse.redirect(new URL("/?error=user_failed", baseUrl));
+            return deleteStateCookie(
+                NextResponse.redirect(new URL("/?error=user_failed", baseUrl))
+            );
         }
 
         const discordUser: DiscordUser = await userResponse.json();
+
+        // Validate Discord user data
+        if (
+            !discordUser.id ||
+            typeof discordUser.id !== "string" ||
+            !discordUser.username ||
+            typeof discordUser.username !== "string"
+        ) {
+            await logger.warn("ログイン失敗（不正なユーザーデータ）", {
+                source: "Web (OAuth)",
+                details: `IP: ${clientIp}`,
+            });
+            return deleteStateCookie(
+                NextResponse.redirect(new URL("/?error=user_failed", baseUrl))
+            );
+        }
+
         const displayName = discordUser.global_name || discordUser.username;
 
         // Build avatar URL
@@ -120,7 +158,9 @@ export async function GET(request: NextRequest) {
                 source: "Web (OAuth)",
                 details: "対象サーバーに未参加のためアクセス拒否",
             });
-            return NextResponse.redirect(new URL("/?error=access_denied", baseUrl));
+            return deleteStateCookie(
+                NextResponse.redirect(new URL("/?error=access_denied", baseUrl))
+            );
         }
 
         // Determine primary attribute based on ALL guild memberships
@@ -199,35 +239,16 @@ export async function GET(request: NextRequest) {
         const { createSessionToken } = await import("@/app/lib/session");
         const sessionToken = await createSessionToken(discordUser.id);
 
-        const redirectUrl = new URL("/ticket", baseUrl).toString();
+        const redirectUrl = new URL("/ticket", baseUrl);
 
-        // Use HTML response with meta refresh to ensure cookie is set before redirect
-        // This works around browser issues with cookies on 307 redirects
-        const html = `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta http-equiv="refresh" content="0;url=${redirectUrl}">
-    <script>window.location.href="${redirectUrl}";</script>
-</head>
-<body>
-    <p>Redirecting...</p>
-</body>
-</html>`;
+        const response = NextResponse.redirect(redirectUrl, { status: 303 });
 
-        const response = new NextResponse(html, {
-            status: 200,
-            headers: {
-                "Content-Type": "text/html",
-            },
-        });
-
-        // Set cookie
+        // Set session cookie using SESSION_COOKIE_NAME
         const cookieValue = `${SESSION_COOKIE_NAME}=${sessionToken}; Path=/; Max-Age=604800; HttpOnly; Secure; SameSite=Lax`;
         response.headers.append("Set-Cookie", cookieValue);
 
         // Delete oauth state cookie
-        response.headers.append("Set-Cookie", "discord_oauth_state=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT");
+        response.cookies.delete("discord_oauth_state");
 
         return response;
     } catch (error) {
@@ -236,6 +257,8 @@ export async function GET(request: NextRequest) {
             source: "Web (OAuth)",
             error,
         });
-        return NextResponse.redirect(new URL("/?error=unknown", baseUrl));
+        return deleteStateCookie(
+            NextResponse.redirect(new URL("/?error=unknown", baseUrl))
+        );
     }
 }

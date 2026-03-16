@@ -1,10 +1,11 @@
+import fs from "fs";
 import prisma from "../app/lib/prisma";
 import path from "path";
 
 async function main() {
     console.log("=== Database Debug Info ===");
     console.log("CWD:", process.cwd());
-    console.log("DATABASE_URL (env):", process.env.DATABASE_URL);
+    console.log("DATABASE_URL (env):", process.env.DATABASE_URL ? "[SET]" : "[NOT SET]");
 
     try {
         // === Guild Overview ===
@@ -93,8 +94,7 @@ async function main() {
         // Verify file existence if sqlite
         const url = process.env.DATABASE_URL || "";
         if (url.startsWith("file:")) {
-            const fs = require("fs");
-            let dbPath = url.replace("file:", "");
+            const dbPath = url.replace("file:", "");
             if (dbPath.startsWith("./")) {
                 // Assume relative to schema.prisma which is usually in prisma/ folder
                 // BUT at runtime, it depends on how prisma client was generated.
