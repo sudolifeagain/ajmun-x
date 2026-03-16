@@ -3,7 +3,9 @@ import { timingSafeEqual } from "crypto";
 import prisma from "@/app/lib/prisma";
 import logger from "@/app/lib/discordLogger";
 import { generateQrToken } from "@/app/lib/qrToken";
+import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from "@/app/lib/rateLimit";
 import { getClientIp } from "@/app/lib/clientIp";
+import { SESSION_COOKIE_NAME } from "@/app/lib/session";
 
 interface DiscordUser {
     id: string;
@@ -18,11 +20,23 @@ function deleteStateCookie(response: NextResponse): NextResponse {
 }
 
 export async function GET(request: NextRequest) {
+    const clientIp = getClientIp(request);
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+
+    // Rate limiting
+    const rateLimitResult = checkRateLimit(`auth:${clientIp}`, RATE_LIMITS.AUTH_API);
+    if (!rateLimitResult.allowed) {
+        const headers = getRateLimitHeaders(rateLimitResult, RATE_LIMITS.AUTH_API);
+        return NextResponse.json(
+            { error: "Rate limit exceeded" },
+            { status: 429, headers }
+        );
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const code = searchParams.get("code");
     const state = searchParams.get("state");
     const storedState = request.cookies.get("discord_oauth_state")?.value;
-    const clientIp = getClientIp(request);
 
     // CSRF check (timing-safe comparison for consistency)
     const stateMatch =
@@ -36,7 +50,7 @@ export async function GET(request: NextRequest) {
             details: `IP: ${clientIp}, state不一致またはstate欠落`,
         });
         return deleteStateCookie(
-            NextResponse.redirect(new URL("/?error=invalid_state", request.url))
+            NextResponse.redirect(new URL("/?error=invalid_state", baseUrl))
         );
     }
 
@@ -46,7 +60,7 @@ export async function GET(request: NextRequest) {
             details: `IP: ${clientIp}`,
         });
         return deleteStateCookie(
-            NextResponse.redirect(new URL("/?error=no_code", request.url))
+            NextResponse.redirect(new URL("/?error=no_code", baseUrl))
         );
     }
 
@@ -60,7 +74,7 @@ export async function GET(request: NextRequest) {
             details: "Discord認証情報が設定されていません",
         });
         return deleteStateCookie(
-            NextResponse.redirect(new URL("/?error=config", request.url))
+            NextResponse.redirect(new URL("/?error=config", baseUrl))
         );
     }
 
@@ -81,7 +95,7 @@ export async function GET(request: NextRequest) {
         if (!tokenResponse.ok) {
             console.error("Token exchange failed:", tokenResponse.status);
             return deleteStateCookie(
-                NextResponse.redirect(new URL("/?error=token_failed", request.url))
+                NextResponse.redirect(new URL("/?error=token_failed", baseUrl))
             );
         }
 
@@ -95,7 +109,7 @@ export async function GET(request: NextRequest) {
 
         if (!userResponse.ok) {
             return deleteStateCookie(
-                NextResponse.redirect(new URL("/?error=user_failed", request.url))
+                NextResponse.redirect(new URL("/?error=user_failed", baseUrl))
             );
         }
 
@@ -113,7 +127,7 @@ export async function GET(request: NextRequest) {
                 details: `IP: ${clientIp}`,
             });
             return deleteStateCookie(
-                NextResponse.redirect(new URL("/?error=user_failed", request.url))
+                NextResponse.redirect(new URL("/?error=user_failed", baseUrl))
             );
         }
 
@@ -144,7 +158,6 @@ export async function GET(request: NextRequest) {
                 source: "Web (OAuth)",
                 details: "対象サーバーに未参加のためアクセス拒否",
             });
-            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.url.split('/api')[0];
             return deleteStateCookie(
                 NextResponse.redirect(new URL("/?error=access_denied", baseUrl))
             );
@@ -226,17 +239,15 @@ export async function GET(request: NextRequest) {
         const { createSessionToken } = await import("@/app/lib/session");
         const sessionToken = await createSessionToken(discordUser.id);
 
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.url.split('/api')[0];
         const redirectUrl = new URL("/ticket", baseUrl);
 
         const response = NextResponse.redirect(redirectUrl, { status: 303 });
-        response.cookies.set("session", sessionToken, {
-            path: "/",
-            maxAge: 604800,
-            httpOnly: true,
-            secure: true,
-            sameSite: "lax",
-        });
+
+        // Set session cookie using SESSION_COOKIE_NAME
+        const cookieValue = `${SESSION_COOKIE_NAME}=${sessionToken}; Path=/; Max-Age=604800; HttpOnly; Secure; SameSite=Lax`;
+        response.headers.append("Set-Cookie", cookieValue);
+
+        // Delete oauth state cookie
         response.cookies.delete("discord_oauth_state");
 
         return response;
@@ -246,7 +257,6 @@ export async function GET(request: NextRequest) {
             source: "Web (OAuth)",
             error,
         });
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.url.split('/api')[0];
         return deleteStateCookie(
             NextResponse.redirect(new URL("/?error=unknown", baseUrl))
         );
