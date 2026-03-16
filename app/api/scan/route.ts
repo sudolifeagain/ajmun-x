@@ -57,12 +57,28 @@ export async function POST(request: NextRequest): Promise<NextResponse<ScanRespo
     }
 
     try {
-        const body: ScanRequest = await request.json();
+        let body: ScanRequest;
+        try {
+            body = await request.json();
+        } catch {
+            return NextResponse.json(
+                { status: "error", message: "Invalid JSON body" },
+                { status: 400 }
+            );
+        }
+
         const { token } = body;
 
         if (!token) {
             return NextResponse.json(
                 { status: "error", message: "Token is required" },
+                { status: 400 }
+            );
+        }
+
+        if (typeof token !== "string" || token.length > 512) {
+            return NextResponse.json(
+                { status: "error", message: "Invalid token format" },
                 { status: 400 }
             );
         }

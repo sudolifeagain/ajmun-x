@@ -25,18 +25,25 @@ export async function GET(request: NextRequest) {
     const multiDates = searchParams.get("dates");
     const guildId = searchParams.get("guildId");
 
+    // Validate guildId format (Discord Snowflake: 17-20 digits)
+    if (guildId && !/^\d{17,20}$/.test(guildId)) {
+        return NextResponse.json(
+            { error: "Invalid guildId format" },
+            { status: 400 }
+        );
+    }
+
     // Get API key from Authorization header (preferred) or query param (deprecated)
     const authHeader = request.headers.get("Authorization");
     let apiKey: string | null = null;
 
     if (authHeader?.startsWith("Bearer ")) {
         apiKey = authHeader.slice(7);
-    } else {
-        // Fallback to query param for backward compatibility
-        apiKey = searchParams.get("apiKey");
-        if (apiKey) {
-            console.warn("[DEPRECATED] API key via query parameter is deprecated. Use Authorization: Bearer header instead.");
-        }
+    } else if (searchParams.has("apiKey")) {
+        return NextResponse.json(
+            { error: "API key via query parameter is no longer supported. Use Authorization: Bearer header." },
+            { status: 400 }
+        );
     }
 
     // API key authentication with timing-safe comparison
