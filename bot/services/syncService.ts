@@ -12,12 +12,6 @@ export async function syncGuildMembers(guild: Guild): Promise<number> {
 
     const config = await getAttributeConfig();
 
-    // Check if guild already exists with isTargetGuild set
-    const existingGuild = await prisma.guild.findUnique({
-        where: { guildId: guild.id },
-        select: { isTargetGuild: true },
-    });
-
     // Only calculate isTargetGuild for new guilds
     // Existing guilds preserve their setting (set by /setup command)
     const isTargetForNew = isTargetGuild(guild.id, config);

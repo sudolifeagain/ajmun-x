@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/app/lib/prisma";
-import { verifyQrToken } from "@/app/lib/session";
+import { getSession } from "@/app/lib/session";
+import { verifyQrToken } from "@/app/lib/qrToken";
 import logger from "@/app/lib/discordLogger";
 import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from "@/app/lib/rateLimit";
 import { getTodayJST } from "@/app/lib/date";
 import { findAttendanceLog, checkInUser } from "@/app/lib/repositories/attendanceRepository";
 import { resolvePrimaryGuild, type GuildMembershipInfo } from "@/lib/shared/guildResolver";
+import { getClientIp } from "@/app/lib/clientIp";
 
 interface ScanRequest {
     token: string;
@@ -30,8 +32,20 @@ interface ScanResponse {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse<ScanResponse>> {
+    // Staff authentication check
+    // Note: proxy.ts provides a fast cookie-existence check (no DB call),
+    // but does not verify JWT signature or staff role. This route handler
+    // performs the full authorization: JWT verification + staff attribute check.
+    const session = await getSession();
+    if (!session || session.primaryAttribute !== "staff") {
+        return NextResponse.json(
+            { status: "error", message: "Unauthorized" },
+            { status: 401 }
+        );
+    }
+
     // Rate limiting by IP
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+    const ip = getClientIp(request);
     const rateLimitResult = checkRateLimit(`scan:${ip}`, RATE_LIMITS.SCAN_API);
 
     if (!rateLimitResult.allowed) {
@@ -102,7 +116,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ScanRespo
         const today = getTodayJST();
 
         // Check for existing attendance log today
-        const { exists: alreadyCheckedIn, method: existingMethod } = await findAttendanceLog(userId, today);
+        const { exists: alreadyCheckedIn } = await findAttendanceLog(userId, today);
 
         // Determine primary guild based on user's attribute
         const memberships = user.guildMemberships;

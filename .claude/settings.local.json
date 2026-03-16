@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(ssh:*)",
+      "Bash(dir:*)",
+      "Bash(scp:*)",
+      "WebFetch(domain:ajmundb.re4lity.com)"
+    ]
+  }
+}
