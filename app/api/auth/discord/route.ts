@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
         // Note: For JSON response we still need to set the cookie on the response
         response.cookies.set("discord_oauth_state", state, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
+            secure: true,
             sameSite: "lax",
             maxAge: 60 * 10, // 10 minutes
         });
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     // Store state in cookie for CSRF protection
     response.cookies.set("discord_oauth_state", state, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: true,
         sameSite: "lax",
         maxAge: 60 * 10, // 10 minutes
     });
