@@ -42,4 +42,7 @@ yarn-error.log*
 next-env.d.ts
 
 /app/generated/prisma
-*.db 
+*.db
+
+# claude skills (contains sensitive connection info)
+.claude/skills/
