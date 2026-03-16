@@ -19,6 +19,7 @@ import {
 import { prisma } from "../utils";
 import { syncAllGuilds, hasStaffPermission, hasAdminPermission, arePermissionsConfigured, getTargetUsers, sendQRCodesToUsers, getDmSendStatus } from "../services";
 import logger from "../utils/discordLogger";
+import { validateSnowflakeList } from "../utils/validation";
 
 // ============================================================================
 // Types & Constants
@@ -101,11 +102,16 @@ async function handleSync(
     interaction: ChatInputCommandInteraction,
     client: Client
 ): Promise<void> {
-    // Allow sync for anyone if no permissions are configured (initial setup mode)
+    // Allow sync for Discord Administrators if no permissions are configured (initial setup mode)
     const permissionsConfigured = await arePermissionsConfigured();
     if (permissionsConfigured) {
         const hasPermission = await hasStaffPermission(interaction.user.id);
         if (!hasPermission) {
+            await replyPermissionError(interaction);
+            return;
+        }
+    } else {
+        if (!interaction.memberPermissions?.has("Administrator")) {
             await replyPermissionError(interaction);
             return;
         }
@@ -137,6 +143,18 @@ async function handleSync(
 async function handleConfig(interaction: ChatInputCommandInteraction): Promise<void> {
     const key = interaction.options.getString("key", true);
     const value = interaction.options.getString("value", true);
+
+    // Validate snowflake IDs for role/user ID configs
+    if (key.endsWith("_role_ids") || key.endsWith("_user_ids")) {
+        const validation = validateSnowflakeList(value);
+        if (!validation.valid) {
+            await interaction.reply({
+                content: `❌ 無効なID形式です: \`${validation.invalid.join(", ")}\``,
+                ephemeral: true,
+            });
+            return;
+        }
+    }
 
     const existingConfig = await prisma.systemConfig.findUnique({ where: { key } });
     const isUpdate = !!existingConfig;
@@ -345,7 +363,7 @@ async function handleSendQr(
 
         // Send QR codes with progress updates
         let lastProgressUpdate = 0;
-        const result = await sendQRCodesToUsers(targetUsers, client, async (current, total, sendResult) => {
+        const result = await sendQRCodesToUsers(targetUsers, client, async (current, total) => {
             // Update progress every 10 users
             if (current - lastProgressUpdate >= 10 || current === total) {
                 lastProgressUpdate = current;
@@ -494,6 +512,17 @@ export async function handleSystemButton(interaction: ButtonInteraction): Promis
     }
 
     if (customId.startsWith("confirm_delete_")) {
+        // Re-check admin permission before executing delete
+        const hasPermission = await hasAdminPermission(interaction.user.id);
+        if (!hasPermission) {
+            await interaction.update({
+                content: "❌ 権限が変更されたため、この操作を実行できません。",
+                components: [],
+            });
+            pendingDeletes.delete(interactionId);
+            return true;
+        }
+
         const existingConfig = await prisma.systemConfig.findUnique({
             where: { key: pendingDelete.key },
         });

@@ -7,6 +7,7 @@ const cspValue = isDev
   : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https://cdn.discordapp.com data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   images: {
     remotePatterns: [
       {
@@ -40,6 +41,10 @@ const nextConfig: NextConfig = {
           {
             key: "X-Permitted-Cross-Domain-Policies",
             value: "none",
+          },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(self), microphone=(), geolocation=()",
           },
           {
             key: "Content-Security-Policy",

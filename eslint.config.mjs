@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Non-app directories (not part of Next.js build):
+    "bot/**",
+    "scripts/**",
+    "docs/**",
+    "marp.config.js",
   ]),
 ]);
 
