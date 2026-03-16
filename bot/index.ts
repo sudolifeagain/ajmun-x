@@ -64,6 +64,34 @@ client.once("ready", async () => {
     });
 });
 
+// Per-user rate limiting for slash commands
+const COMMAND_RATE_LIMIT = { maxRequests: 10, windowSeconds: 60 };
+const commandRateLimits = new Map<string, { count: number; resetTime: number }>();
+
+// Clean up expired entries every 5 minutes
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, entry] of commandRateLimits.entries()) {
+        if (entry.resetTime < now) {
+            commandRateLimits.delete(key);
+        }
+    }
+}, 5 * 60 * 1000);
+
+function checkCommandRateLimit(userId: string): boolean {
+    const now = Date.now();
+    const windowMs = COMMAND_RATE_LIMIT.windowSeconds * 1000;
+    let entry = commandRateLimits.get(userId);
+
+    if (!entry || entry.resetTime < now) {
+        entry = { count: 0, resetTime: now + windowMs };
+        commandRateLimits.set(userId, entry);
+    }
+
+    entry.count++;
+    return entry.count <= COMMAND_RATE_LIMIT.maxRequests;
+}
+
 // Event: Slash command interaction
 client.on("interactionCreate", async (interaction) => {
     // Handle button interactions
@@ -106,6 +134,15 @@ client.on("interactionCreate", async (interaction) => {
     }
 
     if (!interaction.isChatInputCommand()) return;
+
+    // Per-user rate limiting for slash commands
+    if (!checkCommandRateLimit(interaction.user.id)) {
+        await interaction.reply({
+            content: "⚠️ コマンドの実行頻度が高すぎます。しばらく待ってから再試行してください。",
+            ephemeral: true,
+        });
+        return;
+    }
 
     try {
         switch (interaction.commandName) {

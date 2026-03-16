@@ -144,12 +144,12 @@ async function handleConfig(interaction: ChatInputCommandInteraction): Promise<v
     const key = interaction.options.getString("key", true);
     const value = interaction.options.getString("value", true);
 
-    // Validate snowflake IDs for role/user ID configs
-    if (key.endsWith("_role_ids") || key.endsWith("_user_ids")) {
+    // Validate Snowflake IDs for role/user/guild config keys
+    if (key.endsWith("_role_ids") || key.endsWith("_user_ids") || key.endsWith("_guild_ids")) {
         const validation = validateSnowflakeList(value);
         if (!validation.valid) {
             await interaction.reply({
-                content: `❌ 無効なID形式です: \`${validation.invalid.join(", ")}\``,
+                content: `❌ 無効な Snowflake ID が含まれています: ${validation.invalid.map((id) => `\`${id}\``).join(", ")}`,
                 ephemeral: true,
             });
             return;
