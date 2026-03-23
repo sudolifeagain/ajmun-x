@@ -12,13 +12,13 @@
     "slides:preview": "marp -c marp.config.js -p docs/slides"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.1",
+    "@prisma/client": "^6.19.2",
     "@types/qrcode": "^1.5.6",
     "discord.js": "^14.25.1",
     "html5-qrcode": "^2.3.8",
-    "jose": "^6.2.1",
-    "next": "16.1.6",
-    "prisma": "^6.19.1",
+    "jose": "^6.2.2",
+    "next": "16.2.1",
+    "prisma": "^6.19.2",
     "qrcode": "^1.5.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -27,13 +27,13 @@
   },
   "devDependencies": {
     "@kazumatu981/markdown-it-kroki": "^1.3.6",
-    "@marp-team/marp-cli": "^4.3.0",
+    "@marp-team/marp-cli": "^4.3.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^25",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.1.6",
+    "eslint-config-next": "16.2.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
