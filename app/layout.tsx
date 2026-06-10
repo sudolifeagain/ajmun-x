@@ -22,6 +22,12 @@ export const metadata: Metadata = {
   },
 };
 
+// Nonce-based CSP (see proxy.ts) requires dynamic rendering: a per-request
+// nonce only exists at request time, so statically pre-rendered pages would
+// ship nonce-less inline scripts that the CSP then blocks. Forcing dynamic
+// rendering at the root applies the nonce to every route.
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: Readonly<{
