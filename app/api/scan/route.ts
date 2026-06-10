@@ -106,11 +106,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<ScanRespo
                     include: {
                         guild: true,
                     },
-                    where: {
-                        guild: {
-                            isTargetGuild: true,
-                        },
-                    },
                 },
             },
         });
@@ -126,6 +121,37 @@ export async function POST(request: NextRequest): Promise<NextResponse<ScanRespo
             );
         }
 
+        // Reject tokens that don't match the current DB token, so that
+        // regenerating a user's qrToken revokes previously issued QR codes
+        if (user.qrToken !== token) {
+            await logger.warn("スキャンエラー（失効済みトークン）", {
+                discordUser: { id: userId, name: user.globalName || userId },
+                source: "Web (Scan)",
+                details: "DBに保存されたトークンと一致しません（再発行により失効）",
+            });
+            return NextResponse.json(
+                { status: "error", message: "Invalid token" },
+                { status: 403 }
+            );
+        }
+
+        // Require current membership in a tracked guild: users who left
+        // (or were removed from) all servers keep a signed token but must not check in
+        const trackedMemberships = user.guildMemberships.filter(
+            (m) => m.guild.isTargetGuild || m.guild.isOperationServer
+        );
+        if (trackedMemberships.length === 0) {
+            await logger.warn("スキャンエラー（サーバー未参加）", {
+                discordUser: { id: userId, name: user.globalName || userId },
+                source: "Web (Scan)",
+                details: "対象サーバーに所属していないため入場拒否",
+            });
+            return NextResponse.json(
+                { status: "error", message: "User is not a member of any target guild" },
+                { status: 403 }
+            );
+        }
+
         const displayName = user.globalName || userId;
 
         // Get today's date in JST
@@ -135,7 +161,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<ScanRespo
         const { exists: alreadyCheckedIn } = await findAttendanceLog(userId, today);
 
         // Determine primary guild based on user's attribute
-        const memberships = user.guildMemberships;
+        // (response payload keeps the previous behavior: target guilds only)
+        const memberships = user.guildMemberships.filter((m) => m.guild.isTargetGuild);
         const attribute = user.primaryAttribute;
 
         // Convert to GuildMembershipInfo format

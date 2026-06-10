@@ -14,5 +14,8 @@ export function getClientIp(request: NextRequest): string {
         const ips = xff.split(",").map((ip) => ip.trim());
         return ips[ips.length - 1] || "unknown";
     }
-    return "unknown";
+    // Fallback for proxies that set x-real-ip instead of x-forwarded-for.
+    // Without either header all clients share the "unknown" rate-limit bucket,
+    // so the proxy MUST be configured to set one of them in production.
+    return request.headers.get("x-real-ip") || "unknown";
 }
