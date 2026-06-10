@@ -36,6 +36,8 @@ jobs:
             api.github.com:443
             binaries.prisma.sh:443
             checkpoint.prisma.io:443
+            fonts.googleapis.com:443
+            fonts.gstatic.com:443
             github.com:443
             objects.githubusercontent.com:443
             registry.npmjs.org:443
