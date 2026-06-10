@@ -122,6 +122,23 @@ jobs:
               --log-opt max-file=3 \
               '${SERVICE_NAME}'"
 
+      - name: Deploy nginx config
+        env:
+          SSH_HOST: ${{ secrets.OCI_SSH_HOST }}
+          SSH_USER: ${{ secrets.OCI_SSH_USER }}
+          SSH_PORT: ${{ secrets.OCI_SSH_PORT }}
+          APP_DIR: ${{ vars.APP_DIR }}
+        run: |
+          # Install the repo-managed nginx config (deploy/nginx/ajmun.conf) and
+          # reload nginx. The deploy user has no passwordless sudo for nginx but
+          # is in the docker group, so we enter the host namespaces (nsenter -t 1)
+          # through a privileged container to run the installer as host root.
+          # The installer validates with `nginx -t` and rolls back on failure.
+          SCRIPT="${APP_DIR}/build/deploy/nginx/install-nginx-config.sh"
+          ssh -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" \
+            "docker run --rm --privileged --pid=host alpine \
+               nsenter -t 1 -m -u -i -n -p -- sh '${SCRIPT}'"
+
       - name: Health check
         env:
           SSH_HOST: ${{ secrets.OCI_SSH_HOST }}
