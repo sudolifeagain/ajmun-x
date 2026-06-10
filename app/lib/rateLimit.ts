@@ -18,6 +18,32 @@ interface RateLimitEntry {
 // Store rate limit data by key (IP address or API key)
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
+// Cap the store size so spoofed keys (e.g. forged X-Forwarded-For values)
+// cannot grow memory without bound between cleanup intervals
+const MAX_STORE_ENTRIES = 10_000;
+
+/**
+ * Evict entries when the store is full: expired entries first,
+ * then oldest entries (Map preserves insertion order)
+ */
+function evictIfFull(now: number): void {
+    if (rateLimitStore.size < MAX_STORE_ENTRIES) {
+        return;
+    }
+    for (const [key, entry] of rateLimitStore.entries()) {
+        if (entry.resetTime < now) {
+            rateLimitStore.delete(key);
+        }
+    }
+    while (rateLimitStore.size >= MAX_STORE_ENTRIES) {
+        const oldestKey = rateLimitStore.keys().next().value;
+        if (oldestKey === undefined) {
+            break;
+        }
+        rateLimitStore.delete(oldestKey);
+    }
+}
+
 // Clean up old entries every 5 minutes
 setInterval(() => {
     const now = Date.now();
@@ -56,6 +82,7 @@ export function checkRateLimit(key: string, config: RateLimitConfig): RateLimitR
 
     // If no entry or window expired, create a new one
     if (!entry || entry.resetTime < now) {
+        evictIfFull(now);
         entry = {
             count: 0,
             resetTime: now + windowMs,
