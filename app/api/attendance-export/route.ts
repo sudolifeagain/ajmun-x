@@ -25,14 +25,6 @@ export async function GET(request: NextRequest) {
     const multiDates = searchParams.get("dates");
     const guildId = searchParams.get("guildId");
 
-    // Validate guildId format (Discord Snowflake: 17-20 digits)
-    if (guildId && !/^\d{17,20}$/.test(guildId)) {
-        return NextResponse.json(
-            { error: "Invalid guildId format" },
-            { status: 400 }
-        );
-    }
-
     // Get API key from Authorization header (preferred) or query param (deprecated)
     const authHeader = request.headers.get("Authorization");
     let apiKey: string | null = null;
@@ -65,6 +57,16 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(
             { error: "Rate limit exceeded" },
             { status: 429, headers }
+        );
+    }
+
+    // Validate guildId format (Discord Snowflake: 17-20 digits).
+    // Done after authentication so unauthenticated callers can't probe
+    // input-validation behavior.
+    if (guildId && !/^\d{17,20}$/.test(guildId)) {
+        return NextResponse.json(
+            { error: "Invalid guildId format" },
+            { status: 400 }
         );
     }
 
