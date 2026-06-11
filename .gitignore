@@ -23,8 +23,9 @@
 # misc
 .DS_Store
 *.pem
-# ...except Cloudflare's PUBLIC origin-pull CA (used by Authenticated Origin Pulls)
-!deploy/nginx/cloudflare-origin-pull-ca.pem
+*.key
+# ...except the PUBLIC AOP origin CA (verifies Cloudflare's client cert; contains no private key)
+!deploy/nginx/aop-origin-ca.pem
 
 # debug
 npm-debug.log*
