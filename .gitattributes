@@ -2,4 +2,5 @@
 # regardless of contributors' core.autocrlf settings.
 *.sh text eol=lf
 deploy/nginx/ajmun.conf text eol=lf
+deploy/nginx/*.pem text eol=lf
 docker-entrypoint.sh text eol=lf
