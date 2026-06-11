@@ -2,8 +2,8 @@
 # Install the repo-managed nginx assets for ajmun37 and reload nginx safely.
 #
 # Installs:
-#   - deploy/nginx/cloudflare-origin-pull-ca.pem -> /etc/nginx/ssl/ (for AOP)
-#   - deploy/nginx/ajmun.conf                    -> /etc/nginx/conf.d/
+#   - deploy/nginx/aop-origin-ca.pem -> /etc/nginx/ssl/ (AOP client-cert verification)
+#   - deploy/nginx/ajmun.conf        -> /etc/nginx/conf.d/
 #
 # Runs as host root (invoked from deploy.yml via a privileged container that
 # enters the host namespaces with nsenter, because the deploy user has no
@@ -17,9 +17,9 @@ set -eu
 
 SRC_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 SRC_CONF="$SRC_DIR/ajmun.conf"
-SRC_CA="$SRC_DIR/cloudflare-origin-pull-ca.pem"
+SRC_CA="$SRC_DIR/aop-origin-ca.pem"
 DST_CONF=/etc/nginx/conf.d/ajmun.conf
-DST_CA=/etc/nginx/ssl/cloudflare-origin-pull-ca.pem
+DST_CA=/etc/nginx/ssl/aop-origin-ca.pem
 
 if [ ! -f "$SRC_CONF" ]; then
     echo "ERROR: source config not found: $SRC_CONF" >&2
@@ -28,7 +28,7 @@ fi
 
 changed=0
 
-# Cloudflare Origin Pull CA (public cert; used by Authenticated Origin Pulls)
+# AOP origin CA (public cert; verifies the client cert Cloudflare presents)
 if [ -f "$SRC_CA" ] && { [ ! -f "$DST_CA" ] || ! cmp -s "$SRC_CA" "$DST_CA"; }; then
     mkdir -p /etc/nginx/ssl
     cp "$SRC_CA" "$DST_CA"
