@@ -2,6 +2,7 @@
 useDefault = true
 
 [[allowlists]]
+targetRules = ["discord-client-id"]
 description = "Public OAuth client ID in a security regression fixture"
 condition = "AND"
 paths = ['''(^|/)tests/environment[.]test[.]ts$''']
