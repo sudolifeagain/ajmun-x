@@ -29,6 +29,7 @@ function buildCsp(nonce: string, isDev: boolean): string {
         "connect-src 'self'",
         "frame-ancestors 'none'",
         "base-uri 'self'",
+        "form-action 'self'",
         "object-src 'none'",
     ].join("; ");
 }

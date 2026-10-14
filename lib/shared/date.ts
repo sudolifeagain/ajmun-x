@@ -43,5 +43,5 @@ export function isValidDateString(dateStr: string): boolean {
     if (!regex.test(dateStr)) return false;
 
     const date = new Date(dateStr);
-    return !isNaN(date.getTime());
+    return !isNaN(date.getTime()) && date.toISOString().slice(0, 10) === dateStr;
 }

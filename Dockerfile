@@ -1,20 +1,26 @@
 # syntax=docker/dockerfile:1
-FROM node:22-alpine AS builder
+FROM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS builder
 WORKDIR /app
+RUN apk upgrade --no-cache && apk add --no-cache openssl
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci
 COPY . .
 RUN npx prisma generate
 RUN npm run build
 
-FROM node:22-alpine AS deps
+FROM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS deps
 WORKDIR /app
+RUN apk upgrade --no-cache && apk add --no-cache openssl
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev
 
-FROM node:22-alpine AS runner
+FROM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS runner
 WORKDIR /app
-RUN apk add --no-cache bash
+# Patch Alpine packages, and remove package managers from the production image.
+# Startup uses the already-installed Prisma binary and Node directly.
+RUN apk upgrade --no-cache && apk add --no-cache bash openssl \
+    && rm -rf /usr/local/lib/node_modules/npm /opt/yarn-* \
+    && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/yarn /usr/local/bin/yarnpkg
 
 # Next.js standalone output をコピー
 COPY --from=builder /app/.next/standalone ./
@@ -29,6 +35,8 @@ COPY --from=builder /app/app/lib ./app/lib
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/package.json ./
+COPY --from=builder /app/package-lock.json ./
+COPY --from=builder /app/scripts/validate-environment.mjs ./scripts/validate-environment.mjs
 
 # エントリポイント
 COPY --from=builder /app/docker-entrypoint.sh ./

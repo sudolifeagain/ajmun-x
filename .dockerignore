@@ -8,3 +8,13 @@ prisma/prod.db
 temp/
 backups/
 docs/
+.claude
+.codex
+.playwright-mcp
+CLAUDE.md
+*.db
+*.db-*
+*.key
+*.pem
+!deploy/nginx/aop-origin-ca.pem
+tests/

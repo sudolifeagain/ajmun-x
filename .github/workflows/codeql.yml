@@ -35,24 +35,25 @@ jobs:
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@977e6ceaea7361825998245d787fa3b4d6b9e5df  # codeql-bundle-v2.27.0
+        uses: github/codeql-action/init@d208ec71e39ae46397cbf6569bef8439b9aab974 # codeql-bundle-v2.27.2
         with:
           languages: javascript-typescript
+          queries: security-extended
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@977e6ceaea7361825998245d787fa3b4d6b9e5df  # codeql-bundle-v2.27.0
+        uses: github/codeql-action/autobuild@d208ec71e39ae46397cbf6569bef8439b9aab974 # codeql-bundle-v2.27.2
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@977e6ceaea7361825998245d787fa3b4d6b9e5df  # codeql-bundle-v2.27.0
+        uses: github/codeql-action/analyze@d208ec71e39ae46397cbf6569bef8439b9aab974 # codeql-bundle-v2.27.2
         with:
           category: "/language:javascript-typescript"

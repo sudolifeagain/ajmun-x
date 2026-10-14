@@ -29,7 +29,7 @@ jobs:
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -41,14 +41,16 @@ jobs:
             github.com:443
             objects.githubusercontent.com:443
             registry.npmjs.org:443
+            release-assets.githubusercontent.com:443
 
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: npm
@@ -56,9 +58,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Scan Git history for secrets
+        run: |
+          ARCHIVE="$RUNNER_TEMP/gitleaks.tar.gz"
+          curl -fsSL https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz -o "$ARCHIVE"
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  $ARCHIVE" | sha256sum -c -
+          tar xzf "$ARCHIVE" -C "$RUNNER_TEMP" gitleaks
+          "$RUNNER_TEMP/gitleaks" git --redact --no-banner .
+
       - name: Audit dependencies
-        run: npm audit --audit-level=high
-        continue-on-error: true
+        run: npm run audit
 
       - name: Generate Prisma client
         run: npx prisma generate
@@ -66,7 +75,7 @@ jobs:
           DATABASE_URL: "file:./ci-test.db"
 
       - name: Restore Next.js build cache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .next/cache
           key: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', '**/*.css') }}
@@ -78,9 +87,58 @@ jobs:
         run: npm run lint
 
       - name: Type-check
-        run: npx tsc --noEmit
+        run: npm run typecheck
+
+      - name: Security regression tests
+        run: npm test
 
       - name: Build
         run: npm run build
         env:
           DATABASE_URL: "file:./ci-test.db"
+
+  container:
+    name: Production Docker build
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build production image
+        run: docker build --pull -t ajmun-x:ci .
+      - name: Setup Node.js for manifest audit
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Check image isolation and production dependencies
+        run: |
+          test "$(docker image inspect -f '{{.Config.User}}' ajmun-x:ci)" = node
+          docker run --rm --entrypoint node ajmun-x:ci -e "const fs=require('fs'); if(fs.existsSync('/app/.env') || fs.existsSync('/usr/local/lib/node_modules/npm')) process.exit(1)"
+          CONTAINER=$(docker create ajmun-x:ci)
+          trap 'docker rm "$CONTAINER"' EXIT
+          AUDIT_DIR="$RUNNER_TEMP/production-audit"
+          mkdir -p "$AUDIT_DIR"
+          docker cp "$CONTAINER:/app/package.json" "$AUDIT_DIR/"
+          docker cp "$CONTAINER:/app/package-lock.json" "$AUDIT_DIR/"
+          npm audit --prefix "$AUDIT_DIR" --omit=dev --audit-level=low
+      - name: Audit container OS and installed packages
+        run: |
+          ARCHIVE="$RUNNER_TEMP/trivy.tar.gz"
+          curl -fsSL https://github.com/aquasecurity/trivy/releases/download/v0.75.0/trivy_0.75.0_Linux-64bit.tar.gz -o "$ARCHIVE"
+          echo "c6e65abddb348e25f10549df887045629cf28cc72453cd1c63acb717316b3f3f  $ARCHIVE" | sha256sum -c -
+          tar xzf "$ARCHIVE" -C "$RUNNER_TEMP" trivy
+          "$RUNNER_TEMP/trivy" image --quiet --scanners vuln --severity HIGH,CRITICAL --exit-code 1 ajmun-x:ci
+
+  deploy:
+    name: Deploy to Production
+    needs: [ci, container]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit

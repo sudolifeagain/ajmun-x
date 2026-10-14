@@ -34,7 +34,7 @@ export function generateQrToken(userId: string): string {
  * Placeholder tokens start with "bot-sync-" and lack a signature
  */
 export function isValidQrTokenFormat(token: string): boolean {
-    return token.includes(".") && !token.startsWith("bot-sync-");
+    return verifyQrToken(token).valid;
 }
 
 /** Maximum QR token age in milliseconds (30 days) */
@@ -46,22 +46,30 @@ const QR_TOKEN_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 export function verifyQrToken(token: string): { valid: boolean; userId?: string } {
     try {
         const secret = process.env.QR_SECRET;
-        if (!secret) {
+        if (!secret || secret.length < 32) {
             throw new Error("QR_SECRET environment variable is required");
         }
 
+        if (typeof token !== "string" || token.length > 256) return { valid: false };
+        const parts = token.split(".");
+        if (parts.length !== 2) return { valid: false };
         const [payloadBase64, signature] = token.split(".");
 
-        if (!payloadBase64 || !signature) {
+        if (!/^[A-Za-z0-9_-]+$/.test(payloadBase64) || !/^[a-f0-9]{64}$/.test(signature)) {
             return { valid: false };
         }
 
         const payload = Buffer.from(payloadBase64, "base64url").toString();
+        if (Buffer.from(payload).toString("base64url") !== payloadBase64 ||
+            !/^\d{17,20}:\d{13}:[a-f0-9]{32}$/.test(payload)) {
+            return { valid: false };
+        }
         const [userId, timestamp] = payload.split(":");
 
         // Check token expiry (30 days)
-        const tokenTime = parseInt(timestamp, 10);
-        if (isNaN(tokenTime) || Date.now() - tokenTime > QR_TOKEN_MAX_AGE_MS) {
+        const tokenTime = Number(timestamp);
+        const now = Date.now();
+        if (!Number.isSafeInteger(tokenTime) || tokenTime > now || now - tokenTime > QR_TOKEN_MAX_AGE_MS) {
             return { valid: false };
         }
 

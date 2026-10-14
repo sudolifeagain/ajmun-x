@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, AutocompleteInteraction, EmbedBuilder, MessageFlags } from "discord.js";
+import { ChatInputCommandInteraction, AutocompleteInteraction, EmbedBuilder, MessageFlags, escapeMarkdown } from "discord.js";
 import { Prisma } from "@prisma/client";
 import { prisma, getTodayJST, getAttributeLabel } from "../utils";
 import { isValidDateString } from "../../lib/shared/date";
@@ -244,7 +244,7 @@ async function handlePresent(
 
     const displayUsers = allUsers.slice(0, MAX_DISPLAY);
     const remaining = allUsers.length - displayUsers.length;
-    const userList = displayUsers.map((name) => `• ${name.replace(/_/g, "\\_")}`).join("\n");
+    const userList = displayUsers.map((name) => `• ${escapeMarkdown(name)}`).join("\n");
 
     const titleSuffix = isToday ? "" : ` (${targetDate})`;
     const embed = new EmbedBuilder()
@@ -311,7 +311,7 @@ async function handleAbsent(
 
     const displayUsers = allUsers.slice(0, MAX_DISPLAY);
     const remaining = allUsers.length - displayUsers.length;
-    const userList = displayUsers.map((name) => `• ${name.replace(/_/g, "\\_")}`).join("\n");
+    const userList = displayUsers.map((name) => `• ${escapeMarkdown(name)}`).join("\n");
 
     const titleSuffix = isToday ? "" : ` (${targetDate})`;
     const embed = new EmbedBuilder()

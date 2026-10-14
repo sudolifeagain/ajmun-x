@@ -3,6 +3,7 @@ import { getSession } from "@/app/lib/session";
 import prisma from "@/app/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import TicketCard from "./TicketCard";
+import { generateQrToken, verifyQrToken } from "@/app/lib/qrToken";
 
 // Force dynamic rendering to ensure cookies are always available
 export const dynamic = 'force-dynamic';
@@ -12,6 +13,15 @@ export default async function TicketPage() {
 
     if (!user) {
         redirect("/");
+    }
+
+    // Existing sessions can outlive a QR token. Refresh it before displaying it.
+    if (!verifyQrToken(user.qrToken).valid) {
+        const refreshed = await prisma.user.update({
+            where: { discordUserId: user.discordUserId },
+            data: { qrToken: generateQrToken(user.discordUserId) },
+        });
+        user.qrToken = refreshed.qrToken;
     }
 
     // Determine guild filter based on user role

@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "incremental": false },
+  "include": ["bot/**/*.ts", "lib/**/*.ts", "app/lib/**/*.ts"],
+  "exclude": ["node_modules", ".next"]
+}

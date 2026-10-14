@@ -45,7 +45,7 @@ function evictIfFull(now: number): void {
 }
 
 // Clean up old entries every 5 minutes
-setInterval(() => {
+const cleanupTimer = setInterval(() => {
     const now = Date.now();
     for (const [key, entry] of rateLimitStore.entries()) {
         if (entry.resetTime < now) {
@@ -53,6 +53,7 @@ setInterval(() => {
         }
     }
 }, 5 * 60 * 1000);
+cleanupTimer.unref();
 
 export interface RateLimitConfig {
     /** Maximum requests allowed in the window */

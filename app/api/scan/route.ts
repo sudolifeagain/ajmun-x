@@ -8,10 +8,7 @@ import { getTodayJST } from "@/app/lib/date";
 import { findAttendanceLog, checkInUser } from "@/app/lib/repositories/attendanceRepository";
 import { resolvePrimaryGuild, type GuildMembershipInfo } from "@/lib/shared/guildResolver";
 import { getClientIp } from "@/app/lib/clientIp";
-
-interface ScanRequest {
-    token: string;
-}
+import { isSameOrigin, readJsonBody, RequestBodyError } from "@/app/lib/requestSecurity";
 
 interface ScanResponse {
     status: "ok" | "duplicate" | "error";
@@ -44,6 +41,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<ScanRespo
         );
     }
 
+    if (!isSameOrigin(request)) {
+        return NextResponse.json({ status: "error", message: "Invalid origin" }, { status: 403 });
+    }
+
     // Rate limiting by IP
     const ip = getClientIp(request);
     const rateLimitResult = checkRateLimit(`scan:${ip}`, RATE_LIMITS.SCAN_API);
@@ -57,17 +58,20 @@ export async function POST(request: NextRequest): Promise<NextResponse<ScanRespo
     }
 
     try {
-        let body: ScanRequest;
+        let body: unknown;
         try {
-            body = await request.json();
-        } catch {
+            body = await readJsonBody(request);
+        } catch (error) {
             return NextResponse.json(
-                { status: "error", message: "Invalid JSON body" },
-                { status: 400 }
+                { status: "error", message: error instanceof RequestBodyError ? error.message : "Invalid JSON body" },
+                { status: error instanceof RequestBodyError ? error.status : 400 }
             );
         }
 
-        const { token } = body;
+        if (!body || typeof body !== "object" || Array.isArray(body)) {
+            return NextResponse.json({ status: "error", message: "Invalid JSON body" }, { status: 400 });
+        }
+        const token = (body as Record<string, unknown>).token;
 
         if (!token) {
             return NextResponse.json(

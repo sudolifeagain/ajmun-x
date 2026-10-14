@@ -22,7 +22,7 @@ jobs:
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           egress-policy: block
           allowed-endpoints: >
@@ -35,18 +35,18 @@ jobs:
             uploads.github.com:443
 
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Run Scorecard
-        uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
+        uses: ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e # v2.5.0
         with:
           results_file: results.sarif
           results_format: sarif
           publish_results: true
 
       - name: Upload SARIF
-        uses: github/codeql-action/upload-sarif@977e6ceaea7361825998245d787fa3b4d6b9e5df  # codeql-bundle-v2.27.0
+        uses: github/codeql-action/upload-sarif@d208ec71e39ae46397cbf6569bef8439b9aab974 # codeql-bundle-v2.27.2
         with:
           sarif_file: results.sarif

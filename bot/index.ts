@@ -10,7 +10,7 @@
  * - utils/              - Shared utilities
  */
 
-import { Client, GatewayIntentBits, REST, Routes } from "discord.js";
+import { Client, GatewayIntentBits, REST, Routes, Events } from "discord.js";
 import { config } from "dotenv";
 import { commands } from "./commandDefinitions";
 import { handleAttendance, handleAttendanceAutocomplete, handleSystem, handleSystemButton, handleSetup, handleSetupAutocomplete, handleHelp, handleHelpSelect } from "./commands";
@@ -20,13 +20,16 @@ import logger from "./utils/discordLogger";
 
 config();
 
-const TOKEN = process.env.DISCORD_BOT_TOKEN;
-const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
-
-if (!TOKEN || !CLIENT_ID) {
-    console.error("DISCORD_BOT_TOKEN and DISCORD_CLIENT_ID environment variables are required");
-    process.exit(1);
+function requiredEnv(name: string): string {
+    const value = process.env[name];
+    if (!value) {
+        console.error(`${name} environment variable is required`);
+        process.exit(1);
+    }
+    return value;
 }
+const TOKEN = requiredEnv("DISCORD_BOT_TOKEN");
+const CLIENT_ID = requiredEnv("DISCORD_CLIENT_ID");
 
 // Initialize Discord client
 const client = new Client({
@@ -49,7 +52,7 @@ async function registerCommands(): Promise<void> {
 }
 
 // Event: Bot ready
-client.once("ready", async () => {
+client.once(Events.ClientReady, async () => {
     console.log(`Bot logged in as ${client.user?.tag}`);
     await registerCommands();
 

@@ -4,6 +4,8 @@ import { useState } from "react";
 
 export default function DiscordLoginButton() {
     const [isLoading, setIsLoading] = useState(false);
+    // OAuth redirects need a full browser navigation, including the API fallback.
+    const navigateToLogin = () => window.location.assign(new URL("/api/auth/discord", window.location.origin).href);
 
     const handleLogin = async () => {
         setIsLoading(true);
@@ -14,7 +16,7 @@ export default function DiscordLoginButton() {
 
             if (!res.ok) {
                 console.error("Failed to fetch auth URL");
-                window.location.href = "/api/auth/discord";
+                navigateToLogin();
                 return;
             }
 
@@ -26,12 +28,12 @@ export default function DiscordLoginButton() {
                 window.location.href = data.url;
             } else {
                 // Fallback
-                window.location.href = "/api/auth/discord";
+                navigateToLogin();
             }
         } catch (error) {
             console.error("Login initialization failed", error);
             // Fallback
-            window.location.href = "/api/auth/discord";
+            navigateToLogin();
         }
     };
 

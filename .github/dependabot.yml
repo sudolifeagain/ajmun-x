@@ -30,3 +30,12 @@ updates:
     labels:
       - dependencies
       - ci
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Asia/Tokyo
+    labels:
+      - dependencies

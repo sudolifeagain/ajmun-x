@@ -184,7 +184,7 @@ function syncAllAttendance() {
         sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold");
 
         if (rows.length > 0) {
-            sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+            sheet.getRange(2, 1, rows.length, headers.length).setValues(rows.map(row => row.map(safeSheetValue)));
         }
 
         // 最終更新日時をシートに表示
@@ -246,7 +246,7 @@ function fetchAttendanceData(dates) {
     try {
         const response = UrlFetchApp.fetch(url, {
             muteHttpExceptions: true,
-            validateHttpsCertificates: false,
+            validateHttpsCertificates: true,
             headers: {
                 "Authorization": `Bearer ${CONFIG.API_KEY}`
             }
@@ -312,6 +312,11 @@ function formatTimestamp(isoString) {
 /**
  * UIが使用可能な場合はアラートを表示し、そうでない場合（トリガー実行時など）はログ出力のみ行う
  */
+function safeSheetValue(value) {
+    // Treat user-controlled names and errors as text, never executable formulas.
+    return typeof value === "string" && /^[\s\u0000-\u001f]*[=+@-]/.test(value) ? "'" + value : value;
+}
+
 function safeAlert(message) {
     try {
         SpreadsheetApp.getUi().alert(message);
