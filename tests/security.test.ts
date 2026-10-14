@@ -50,6 +50,40 @@ test("Session verification binds algorithm, issuer, audience, age and user ID", 
     ]) assert.equal(await verifySessionToken(token), null);
 });
 
+test("One existing secret derives JWT keys, preserves QR tokens, and respects legacy session overrides", async () => {
+    const oldSession = process.env.SESSION_SECRET;
+    const oldQr = process.env.QR_SECRET;
+    try {
+        delete process.env.SESSION_SECRET;
+        const qr = generateQrToken(userId);
+        const token = await createSessionToken(userId);
+        assert.equal(await verifySessionToken(token), userId);
+        assert.equal(verifyQrToken(qr).valid, true);
+        const rawQrKey = new TextEncoder().encode(process.env.QR_SECRET!);
+        const forged = await new SignJWT({ userId }).setProtectedHeader({ alg: "HS256" })
+            .setIssuedAt().setExpirationTime("7d").setIssuer("ajmun-x").setAudience("ajmun-x-web").sign(rawQrKey);
+        assert.equal(await verifySessionToken(forged), null);
+
+        process.env.QR_SECRET = "rotated-test-only-".repeat(3);
+        assert.equal(await verifySessionToken(token), null);
+        assert.equal(verifyQrToken(qr).valid, false);
+
+        process.env.SESSION_SECRET = oldSession!;
+        const legacyToken = await createSessionToken(userId);
+        process.env.QR_SECRET = oldQr!;
+        assert.equal(await verifySessionToken(legacyToken), userId);
+
+        delete process.env.SESSION_SECRET;
+        delete process.env.QR_SECRET;
+        await assert.rejects(createSessionToken(userId), /QR_SECRET must be at least 32 characters/);
+    } finally {
+        if (oldSession === undefined) delete process.env.SESSION_SECRET;
+        else process.env.SESSION_SECRET = oldSession;
+        if (oldQr === undefined) delete process.env.QR_SECRET;
+        else process.env.QR_SECRET = oldQr;
+    }
+});
+
 test("Cookie writes reject missing, foreign and null origins and missing production configuration", () => {
     const oldUrl = process.env.NEXT_PUBLIC_BASE_URL;
     const oldMode = process.env.NODE_ENV;

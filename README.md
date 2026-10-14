@@ -73,8 +73,11 @@ Before merging changes, run `npm run audit`, `npm test`, `npm run lint`,
 CI also scans Git history for secrets and builds/audits the production Docker image.
 Production deployment is a reusable workflow called only after successful main-push CI.
 The production entrypoint validates configuration before starting: configure a
-random `SESSION_SECRET` of at least 32 characters, distinct from `QR_SECRET`,
-and HTTPS base/callback URLs. Invalid configuration or failed database setup aborts startup.
+random `QR_SECRET` of at least 32 characters and HTTPS base/callback URLs.
+The JWT signing key is derived from `QR_SECRET` using HKDF-SHA256, so no extra
+secret needs to be configured. Existing QR tokens keep their signature scheme.
+An explicitly configured `SESSION_SECRET` remains supported for existing deployments.
+Invalid configuration or failed database setup aborts startup.
 
 The full dependency audit temporarily permits only the unpatched, development-only
 `braces@3.0.3` advisory GHSA-vfj7-8cjw-p6xm, with a review deadline of 2026-11-14.

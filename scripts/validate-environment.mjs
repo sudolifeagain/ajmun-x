@@ -3,9 +3,8 @@ import { fileURLToPath } from "node:url";
 /** @param {Record<string, string | undefined>} env */
 export function environmentErrors(env = process.env) {
     const errors = [];
-    for (const name of ["SESSION_SECRET", "QR_SECRET"]) {
-        if (!env[name] || env[name].length < 32) errors.push(`${name} must contain at least 32 characters`);
-    }
+    if (!env.QR_SECRET || env.QR_SECRET.length < 32) errors.push("QR_SECRET must contain at least 32 characters");
+    if (env.SESSION_SECRET && env.SESSION_SECRET.length < 32) errors.push("SESSION_SECRET must contain at least 32 characters when configured");
     if (env.SESSION_SECRET && env.SESSION_SECRET === env.QR_SECRET) errors.push("SESSION_SECRET and QR_SECRET must be different");
     for (const name of ["DISCORD_CLIENT_ID", "DISCORD_CLIENT_SECRET", "DISCORD_BOT_TOKEN", "EXPORT_API_KEY", "DATABASE_URL"]) {
         if (!env[name]) errors.push(`${name} is required`);

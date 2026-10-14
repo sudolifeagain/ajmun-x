@@ -1,11 +1,17 @@
 import { jwtVerify, SignJWT } from "jose";
+import { hkdfSync } from "node:crypto";
 
 function getJwtSecret(): Uint8Array {
-    const secret = process.env.SESSION_SECRET;
+    // Keep explicitly configured session keys compatible with existing JWTs.
+    // The default needs only the existing QR_SECRET; derive a separate JWT key
+    // with a fixed application salt and purpose/version context (RFC 5869).
+    const explicitSessionSecret = process.env.SESSION_SECRET;
+    const secret = explicitSessionSecret || process.env.QR_SECRET;
     if (!secret || secret.length < 32) {
-        throw new Error("SESSION_SECRET must be at least 32 characters");
+        throw new Error(`${explicitSessionSecret ? "SESSION_SECRET" : "QR_SECRET"} must be at least 32 characters`);
     }
-    return new TextEncoder().encode(secret);
+    if (explicitSessionSecret) return new TextEncoder().encode(secret);
+    return new Uint8Array(hkdfSync("sha256", secret, "ajmun-x", "session-jwt:v1", 32));
 }
 
 export async function createSessionToken(userId: string): Promise<string> {
