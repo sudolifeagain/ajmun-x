@@ -1,0 +1,5 @@
+# Reviewed: this GUIDE example uses an API-key placeholder, not a credential.
+cf5495f23d46788419cd3f83b6f0fb8a28d1dd40:docs/GUIDE.md:curl-auth-header:548
+# OAuth client IDs are public identifiers. These exact historical findings are not client secrets.
+64db65b17814a034bfab0813fe5edb9f455553ea:docs/SETUP.md:discord-client-id:84
+acf683f388436ecbad13d728af9f5c0adcb041f9:docs/GUIDE.md:discord-client-id:71

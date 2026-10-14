@@ -1,8 +1,10 @@
 #!/bin/bash
-set -e
+set -euo pipefail
+
+node scripts/validate-environment.mjs
 
 # Apply database migrations
-npx prisma db push --skip-generate || echo "[entrypoint] WARNING: prisma db push failed" >&2
+./node_modules/.bin/prisma db push --skip-generate
 
 # Start Discord bot in background
 node --import tsx bot/index.ts &

@@ -150,6 +150,7 @@ export async function log(level: LogLevel, title: string, context?: LogContext):
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(5000),
         });
     } catch (error) {
         // Silently fail - we don't want logging to break the main app

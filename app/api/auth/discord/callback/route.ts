@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import prisma from "@/app/lib/prisma";
 import logger from "@/app/lib/discordLogger";
-import { generateQrToken } from "@/app/lib/qrToken";
+import { generateQrToken, verifyQrToken } from "@/app/lib/qrToken";
 import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from "@/app/lib/rateLimit";
 import { getClientIp } from "@/app/lib/clientIp";
 import { SESSION_COOKIE_NAME } from "@/app/lib/session";
+import { OAUTH_STATE_COOKIE_NAME, OAUTH_STATE_COOKIE_OPTIONS } from "@/app/lib/oauth";
 
 interface DiscordUser {
     id: string;
@@ -15,7 +16,7 @@ interface DiscordUser {
 }
 
 function deleteStateCookie(response: NextResponse): NextResponse {
-    response.cookies.delete("discord_oauth_state");
+    response.cookies.set(OAUTH_STATE_COOKIE_NAME, "", { ...OAUTH_STATE_COOKIE_OPTIONS, maxAge: 0 });
     return response;
 }
 
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const code = searchParams.get("code");
     const state = searchParams.get("state");
-    const storedState = request.cookies.get("discord_oauth_state")?.value;
+    const storedState = request.cookies.get(OAUTH_STATE_COOKIE_NAME)?.value;
 
     // CSRF check (timing-safe comparison for consistency)
     const stateMatch =
@@ -90,6 +91,7 @@ export async function GET(request: NextRequest) {
                 code: code,
                 redirect_uri: redirectUri,
             }),
+            signal: AbortSignal.timeout(10000),
         });
 
         if (!tokenResponse.ok) {
@@ -105,6 +107,7 @@ export async function GET(request: NextRequest) {
         // Fetch user info
         const userResponse = await fetch("https://discord.com/api/users/@me", {
             headers: { Authorization: `Bearer ${accessToken}` },
+            signal: AbortSignal.timeout(10000),
         });
 
         if (!userResponse.ok) {
@@ -117,8 +120,8 @@ export async function GET(request: NextRequest) {
 
         // Validate Discord user data
         if (
-            !discordUser.id ||
             typeof discordUser.id !== "string" ||
+            !/^\d{17,20}$/.test(discordUser.id) ||
             !discordUser.username ||
             typeof discordUser.username !== "string"
         ) {
@@ -214,8 +217,8 @@ export async function GET(request: NextRequest) {
                 },
             });
         } else {
-            // Regenerate qrToken if it's in the old bot-sync format
-            const needsNewToken = user.qrToken.startsWith("bot-sync-") || !user.qrToken.includes(".");
+            // Refresh expired, tampered, or legacy placeholder tokens.
+            const needsNewToken = !verifyQrToken(user.qrToken).valid;
 
             user = await prisma.user.update({
                 where: { discordUserId: discordUser.id },
@@ -253,7 +256,7 @@ export async function GET(request: NextRequest) {
         });
 
         // Delete oauth state cookie
-        response.cookies.delete("discord_oauth_state");
+        deleteStateCookie(response);
 
         return response;
     } catch (error) {

@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import prisma from "@/app/lib/prisma";
 import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from "@/app/lib/rateLimit";
+import { isValidDateString } from "@/lib/shared/date";
 
 /**
  * Attendance Export API for Google Sheets integration
  *
  * Authentication:
  *   - Authorization: Bearer <API_KEY> (recommended)
- *   - Or apiKey query param (deprecated, for backward compatibility)
+ *   - Query-string credentials are rejected to avoid leaking secrets in URLs.
  *
  * Query params:
  *   - date: YYYY-MM-DD (default: today) - for single day mode
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
     const multiDates = searchParams.get("dates");
     const guildId = searchParams.get("guildId");
 
-    // Get API key from Authorization header (preferred) or query param (deprecated)
+    // Accept credentials only in the Authorization header.
     const authHeader = request.headers.get("Authorization");
     let apiKey: string | null = null;
 
@@ -80,8 +81,7 @@ export async function GET(request: NextRequest) {
         if (dates.length > 31) {
             return NextResponse.json({ error: "Maximum 31 dates allowed" }, { status: 400 });
         }
-        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-        if (!dates.every(d => dateRegex.test(d))) {
+        if (!dates.every(isValidDateString)) {
             return NextResponse.json({ error: "Invalid date format. Use YYYY-MM-DD" }, { status: 400 });
         }
 
