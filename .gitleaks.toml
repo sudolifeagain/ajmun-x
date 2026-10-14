@@ -1,0 +1,9 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Public OAuth client ID in a security regression fixture"
+condition = "AND"
+paths = ['''(^|/)tests/environment[.]test[.]ts$''']
+regexTarget = "line"
+regexes = ['''DISCORD_CLIENT[_]ID: "123456789012345678"''']
